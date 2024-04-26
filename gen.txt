@@ -1,0 +1,39 @@
+0:
+create project
+gen only random ???
+produce and sort result
+check result for goal
+if goal s.goal = e, if cfg.goal then end
+if not goal then 1:
+
+1:
+gen ???
+produce and sort result
+check result for goal
+if goal and result better s.goal = e, if cfg.goal then end
+if not goal
+if result better prev or (not better prev <= ???) then 1:
+if result not better prev > ??? then 2:
+
+2:
+if level < 9 then level++ then 1:
+if level == 9 then 3:
+
+3:
+if pop ??? then pop ??? then 1:
+if pop ??? then 4:
+
+4:
+create next project, init pop, init level
+
+
+* gen(random, mutate, recomb)
+??? * count -- init when new
+??? * attempts w\o rise
+9 level -- 0 when new
+
+new (
+4 aggr
+12 proc
+* size
+)
