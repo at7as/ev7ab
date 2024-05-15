@@ -6,3 +6,6 @@ run-test:
 
 build-app:
 	@go build -o ./build/ ./cmd/app
+
+bench:
+	@go test -bench=. -benchmem ./cmd/bench/bench_test.go

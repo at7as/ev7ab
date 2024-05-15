@@ -1,30 +1,30 @@
 package lab
 
-import (
-	"fmt"
-	"sort"
-)
+const levelMax int = 9
 
 // Lab ...
 type Lab struct {
-	cfg  config
+	cfg  Config
 	prod Producer
 	gen  *generator
 	s    state
 }
 
-type config struct {
-	in     []int
-	out    []int
-	aggr   []string
-	proc   []string
-	target []float64
-	bias   []float64
-	goal   bool
+// Config ...
+type Config struct {
+	In     []int
+	Out    []int
+	Target []float64
+	Limit  []float64
+	Goal   bool
+	Size   int
+	Aggr   []string
+	Proc   []string
 }
 
 type state struct {
-	ev []*project
+	ev   *project
+	next bool
 	// pop []*entity
 	// top []*entity
 	run  bool
@@ -32,62 +32,48 @@ type state struct {
 }
 
 // New ...
-func New(prod Producer) *Lab {
+func New(cfg Config, prod Producer) *Lab {
 
-	l := &Lab{prod: prod, gen: &generator{}}
+	l := &Lab{cfg: cfg, prod: prod, gen: &generator{}}
 
 	return l
-}
-
-// Configure ...
-func (l *Lab) Configure(in, out []int, aggr, proc []string, target []float64, bias []float64, goal bool) {
-
-	l.cfg = config{in, out, aggr, proc, target, bias, goal}
-	l.gen.prepare(l)
-
-}
-
-// AddAggregator ...
-func (l *Lab) AddAggregator(key string, aggr Aggregator) {
-
-	l.gen.aggr[key] = aggr
-
-}
-
-// AddProcessor ...
-func (l *Lab) AddProcessor(key string, proc Processor) {
-
-	l.gen.proc[key] = proc
-
 }
 
 // Examine ...
 func (l *Lab) Examine() {
 
-	l.generate()
+	l.gen.prepare(l)
+	// l.s.run = true
 
-	l.s.run = true
 	for l.s.run {
-
-		l.production()
-
-		if l.s.run {
-			l.evolution()
-		}
-
+		l.generation()
+		// l.evolution()
 	}
+
+	// l.generate()
+
+	// l.s.run = true
+	// for l.s.run {
+
+	// 	l.production()
+
+	// 	if l.s.run {
+	// 		l.evolution()
+	// 	}
+
+	// }
 
 	// >>>
-	for _, p := range l.s.ev {
-		for _, s := range p.origin.nest {
-			fmt.Printf("s: %v %v %v\n", s.a, s.p, s.n)
-		}
-		fmt.Printf("p.last(): %v\n", p.last())
-	}
+	// for _, p := range l.s.ev {
+	// 	for _, s := range p.origin.nest {
+	// 		fmt.Printf("s: %v %v %v\n", s.a, s.p, s.n)
+	// 	}
+	// 	fmt.Printf("p.last(): %v\n", p.last())
+	// }
 	// <<<
 }
 
-func (l *Lab) generate() {
+func (l *Lab) generation() {
 
 	l.gen.next()
 
@@ -95,19 +81,19 @@ func (l *Lab) generate() {
 
 func (l *Lab) production() {
 
-	for _, s := range l.s.ev {
-		for _, e := range s.pop {
-			e.result = append(e.result, l.prod.Produce(next(e)))
-		}
-		sort.Slice(s.pop, func(i, j int) bool {
-			return l.prod.Compare(s.pop[i].last(), s.pop[j].last())
-		})
-		s.result = append(s.result, s.pop[0].last())
-	}
+	// for _, s := range l.s.ev {
+	// 	for _, e := range s.pop {
+	// 		e.result = append(e.result, l.prod.Produce(next(e)))
+	// 	}
+	// 	sort.Slice(s.pop, func(i, j int) bool {
+	// 		return l.prod.Compare(s.pop[i].last(), s.pop[j].last())
+	// 	})
+	// 	s.result = append(s.result, s.pop[0].last())
+	// }
 
-	sort.Slice(l.s.ev, func(i, j int) bool {
-		return l.prod.Compare(l.s.ev[i].last(), l.s.ev[j].last())
-	})
+	// sort.Slice(l.s.ev, func(i, j int) bool {
+	// 	return l.prod.Compare(l.s.ev[i].last(), l.s.ev[j].last())
+	// })
 
 	// >>>
 	// l.s.top = l.s.pop
@@ -128,7 +114,7 @@ func (l *Lab) evolution() {
 	l.origination()
 	l.recombination()
 	l.mutation()
-	l.generate()
+	// l.generate()
 
 	// >>>
 	l.s.run = false
@@ -159,27 +145,6 @@ func (l *Lab) Import() {
 
 // func (l *Lab) Spawn(gen Genome) *Entity {
 // 	return &Entity{Genome: gen, lab: l}
-// }
-
-// // Lab ...
-// type Lab struct {
-// 	cfg *config
-// 	mob []*Entity
-// 	top *Entity
-// 	sel map[string][]*Entity
-// }
-
-// // NewLab ...
-// func NewLab(total int, origin, recombFrom, recombTo, mutateFrom, mutateTo float64, prod producer, debug int, toptotrash bool) *Lab {
-// 	l := &Lab{cfg: &config{total, int(origin * float64(total)), int(recombFrom * float64(total)), int(recombTo * float64(total)), int(mutateFrom * float64(total)), int(mutateTo * float64(total)), prod, debug, &mind{}, &chaos{rand.New(rand.NewSource(time.Now().UnixNano()))}, toptotrash}}
-// 	l.mob = make([]*Entity, 0, total)
-// 	l.sel = make(map[string][]*Entity)
-// 	return l
-// }
-
-// // Add ...
-// func (l *Lab) Add(node int, evaluater string) {
-// 	l.cfg.primal.add(node, evaluater)
 // }
 
 func (l *Lab) selection() {
@@ -234,21 +199,9 @@ func (l *Lab) mutation() {
 	// 	}
 }
 
-// type config struct {
-// 	total      int
-// 	origin     int
-// 	recombFrom int
-// 	recombTo   int
-// 	mutateFrom int
-// 	mutateTo   int
-// 	producer   producer
-// 	debug      int
-// 	primal     *mind
-// 	rand       *chaos
-// 	toptotrash bool
-// }
-
 // обучение с противником
 // продумать значения параметров: начальные, конечные, шаг, динамический шаг
 // debug
 // top 1 del if result > max result
+// массовое мышление
+// старость ноды

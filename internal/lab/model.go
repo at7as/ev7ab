@@ -2,26 +2,26 @@ package lab
 
 type project struct {
 	origin *model
-	level  int
 	pop    []*entity
-	// top    []*entity
+	top    *entity
 	result [][]float64
 }
 
 type model struct {
-	pt   *project
-	nest []*stage
+	pt *project
+	st []*stage
 }
 
 type stage struct {
 	layout
 	Aggregator
 	Processor
+	level int
 }
 
 type layout struct {
-	a  string
-	p  string
+	a  int
+	p  int
 	in []int
 	n  int
 }
@@ -45,13 +45,13 @@ func (p *project) last() []float64 {
 
 func (e *entity) exec(in []float64) *entity {
 
-	for i, s := range e.origin.nest {
+	for i, s := range e.origin.st {
 
-		n := e.origin.nest[i].n
+		n := e.origin.st[i].n
 		for ii, input := range e.link[i] {
 
-			ini := e.origin.nest[i].in[ii]
-			nn := len(input) / e.origin.nest[i].n
+			ini := e.origin.st[i].in[ii]
+			nn := len(input) / e.origin.st[i].n
 			if ini > 0 {
 
 				for iii := 0; iii < nn; iii++ {
@@ -73,7 +73,7 @@ func (e *entity) exec(in []float64) *entity {
 		}
 
 		for _, a := range e.node[i] {
-			a.value = s.Processor.exec(a.value, s.Aggregator.exec(a.in))
+			a.value = s.Processor(a.value, s.Aggregator(a.in))
 		}
 
 	}

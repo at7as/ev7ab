@@ -1,55 +1,28 @@
 package lab
 
-import "math"
+import (
+	"slices"
+)
 
-type Aggregator interface {
-	exec([]float64) float64
+// Aggregator ...
+type Aggregator func([]float64) float64
+
+func sumAggr(in []float64) float64 {
+
+	return sum(in)
 }
 
-type sumAggr struct{}
+func avgAggr(in []float64) float64 {
 
-func (aggr *sumAggr) exec(in []float64) float64 {
-
-	r := 0.0
-	for _, v := range in {
-		r += v
-	}
-
-	return r
+	return sum(in) / float64(len(in))
 }
 
-type avgAggr struct{}
+func minAggr(in []float64) float64 {
 
-func (aggr *avgAggr) exec(in []float64) float64 {
-
-	r := 0.0
-	for _, v := range in {
-		r += v
-	}
-
-	return r / float64(len(in))
+	return slices.Min(in)
 }
 
-type minAggr struct{}
+func maxAggr(in []float64) float64 {
 
-func (aggr *minAggr) exec(in []float64) float64 {
-
-	r := 0.0
-	for _, v := range in {
-		r = math.Min(r, v)
-	}
-
-	return r
-}
-
-type maxAggr struct{}
-
-func (aggr *maxAggr) exec(in []float64) float64 {
-
-	r := 0.0
-	for _, v := range in {
-		r = math.Max(r, v)
-	}
-
-	return r
+	return slices.Max(in)
 }
