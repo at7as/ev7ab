@@ -1,18 +1,20 @@
 package main
 
 import (
-	"math/big"
 	"testing"
 
 	"gonum.org/v1/gonum/floats"
 )
 
-var valuesFloat []float64 = make([]float64, 100001)
-var float big.Float
+var valuesFloat []float64 = make([]float64, 65536)
+var valuesUint16 []uint16 = make([]uint16, 65536)
 
 func init() {
 	for i := 0; i < len(valuesFloat); i++ {
-		valuesFloat[i] = float64(i) / 10000.0
+		valuesFloat[i] = float64(i) / 65535.0
+	}
+	for i := 0; i < len(valuesUint16); i++ {
+		valuesUint16[i] = uint16(i)
 	}
 }
 
@@ -28,9 +30,12 @@ func Benchmark_floatGonum(b *testing.B) {
 	}
 }
 
-func Benchmark_floatBig(b *testing.B) {
+func Benchmark_uint16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		sumBig(valuesFloat)
+		v := valuesUint16[0]
+		for ii := 1; ii < len(valuesUint16); ii++ {
+			v = v & valuesUint16[ii]
+		}
 	}
 }
 
@@ -42,17 +47,4 @@ func sum(v []float64) float64 {
 	}
 
 	return r
-}
-
-func sumBig(v []float64) float64 {
-
-	r := big.NewFloat(0)
-	f := big.NewFloat(0)
-	for i := range v {
-		f.SetFloat64(v[i])
-		r.Add(r, f)
-		// r.SetFloat64(float.Add(&r, vv))
-	}
-	res, _ := r.Float64()
-	return res
 }
