@@ -1,72 +1,60 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
-	"sync"
-	"testing"
 
 	"gonum.org/v1/gonum/stat"
 )
 
-var r []*rand.Rand
-var inputRandom *rand.Rand
-var n int = 10
-var nn int = 100
+var r *rand.Rand
+var n int = 1
+var nn int = 2
 var input [][]float64
 var p01 *project01 = &project01{}
 
 func init() {
-	r = make([]*rand.Rand, n)
-	for i := range r {
-		r[i] = rand.New(rand.NewSource(rand.Int63()))
-	}
-	inputRandom = rand.New(rand.NewSource(rand.Int63()))
+	r = rand.New(rand.NewSource(717))
 	input = make([][]float64, n)
 	for i := range input {
 		input[i] = make([]float64, nn)
 		for ii := range nn {
-			input[i][ii] = inputRandom.Float64()
+			input[i][ii] = r.Float64()
 		}
 	}
 	p01.origin = &model01{
 		pt:   p01,
-		link: 70000,
+		link: 28,
 		in:   []int{nn, nn, nn, nn, nn, nn, nn},
 		out:  [][2]int{{nn, nn}, {nn, nn}, {nn, nn}, {nn, nn}, {nn, nn + nn}, {nn, nn}},
 		matrix: []web01{
 			{0, 0, nn, 0, 1, 0, true},
-			{1, 1, nn, 0, 2, 10000, true},
-			{1, 2, nn, 0, 3, 20000, true},
-			{2, 3, nn, 0, 4, 30000, true},
-			{2, 4, nn, 0, 5, 40000, false},
-			{3, 4, nn, nn, 5, 50000, true},
-			{3, 5, nn, 0, 6, 60000, true},
+			{1, 1, nn, 0, 2, 4, true},
+			{1, 2, nn, 0, 3, 8, true},
+			{2, 3, nn, 0, 4, 12, true},
+			{2, 4, nn, 0, 5, 16, false},
+			{3, 4, nn, nn, 5, 20, true},
+			{3, 5, nn, 0, 6, 24, true},
+
+			// {0, 0, 2, 0, 1, 0},
+			// {0, 1, 2, 0, 2, 4},
+			// {1, 2, 2, 0, 3, 8},
+			// {2, 2, 2, 2, 3, 12},
 		},
 	}
 	p01.pop = make([]*entity01, n)
 	for i := range p01.pop {
-		p01.pop[i] = spawn01(p01.origin, r[i])
+		p01.pop[i] = spawn01(p01.origin)
 	}
 }
 
-func Benchmark_01spawn(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for ii := range p01.pop {
-			p01.pop[ii] = spawn01(p01.origin, r[ii])
-		}
-	}
-}
-
-func Benchmark_02spawn(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		wg := &sync.WaitGroup{}
-		for ii := range p01.pop {
-			wg.Add(1)
-			spawn02(p01.origin, r[ii], wg, p01, ii)
-		}
-		wg.Wait()
-	}
-}
+// func Benchmark_01spawn(b *testing.B) {
+// 	for i := 0; i < b.N; i++ {
+// 		for ii := range p01.pop {
+// 			p01.pop[ii] = spawn01(p01.origin)
+// 		}
+// 	}
+// }
 
 // func Benchmark_01exec(b *testing.B) {
 // 	for i := 0; i < b.N; i++ {
@@ -112,7 +100,7 @@ type web01 struct {
 	end    bool
 }
 
-func spawn01(o *model01, rr *rand.Rand) *entity01 {
+func spawn01(o *model01) *entity01 {
 	e := &entity01{
 		origin: o,
 		link:   make([]float64, o.link),
@@ -120,7 +108,7 @@ func spawn01(o *model01, rr *rand.Rand) *entity01 {
 		out:    make([][][]float64, len(o.in)),
 	}
 	for i := range o.link {
-		e.link[i] = rr.Float64()
+		e.link[i] = r.Float64()
 	}
 	for i, v := range o.in {
 		e.in[i] = make([]float64, v)
@@ -132,34 +120,6 @@ func spawn01(o *model01, rr *rand.Rand) *entity01 {
 		}
 	}
 	return e
-}
-
-func spawn02(o *model01, rr *rand.Rand, wg *sync.WaitGroup, p *project01, iii int) {
-	defer wg.Done()
-	e := &entity01{
-		origin: o,
-		link:   make([]float64, o.link),
-		in:     make([][]float64, len(o.in)),
-		out:    make([][][]float64, len(o.in)),
-	}
-	for i := range o.link {
-		e.link[i] = rr.Float64()
-	}
-	for i, v := range o.in {
-		e.in[i] = make([]float64, v)
-	}
-	for i, v := range o.out {
-		e.out[i] = make([][]float64, v[0])
-		for ii := range e.out[i] {
-			e.out[i][ii] = make([]float64, v[1])
-		}
-	}
-	p.pop[iii] = e
-}
-
-func random(e *entity01, i int, rr *rand.Rand, wg *sync.WaitGroup) {
-	e.link[i] = rr.Float64()
-	wg.Done()
 }
 
 type entity01 struct {
@@ -192,4 +152,27 @@ func (e *entity01) exec(in []float64) {
 func qlinear(v, m float64) float64 {
 
 	return max(1-((v-m)/0.5)*((v-m)/0.5), 0.0)
+}
+
+func main() {
+
+	for ii := range p01.pop {
+		p01.pop[ii] = spawn01(p01.origin)
+		for _, v := range input {
+			p01.pop[ii].exec(v)
+		}
+	}
+
+	e := p01.pop[0]
+	fmt.Printf("e.origin: %v\n", e.origin)
+	fmt.Printf("e.link: %v\n", e.link)
+	for i, v := range e.in {
+		fmt.Printf("v[%v]: %v\n", i, v)
+	}
+	for i, v := range e.out {
+		for ii, vv := range v {
+			fmt.Printf("vv[%v][%v]: %v\n", i, ii, vv)
+		}
+	}
+
 }

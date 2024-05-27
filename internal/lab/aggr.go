@@ -2,6 +2,9 @@ package lab
 
 import (
 	"slices"
+
+	"gonum.org/v1/gonum/floats"
+	"gonum.org/v1/gonum/stat"
 )
 
 // Aggregator ...
@@ -9,12 +12,12 @@ type Aggregator func([]float64) float64
 
 func sumAggr(in []float64) float64 {
 
-	return sum(in)
+	return floats.Sum(in)
 }
 
 func avgAggr(in []float64) float64 {
 
-	return sum(in) / float64(len(in))
+	return stat.Mean(in, nil)
 }
 
 func minAggr(in []float64) float64 {

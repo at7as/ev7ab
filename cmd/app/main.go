@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/at7as/ev7ab/internal/lab"
@@ -19,22 +18,24 @@ func (p *producer) Compare(a, b []float64) bool {
 	return a[0] < b[0]
 }
 
-func main() {
+func (p *producer) Validate(v []float64) bool {
 
-	t := []int{1, 2, 3}
-	for i := len(t) - 1; i >= 0; i-- {
-		fmt.Printf("t[i]: %v\n", t[i])
+	if v[0] == 0 || v[1] == 0 {
+		return false
 	}
 
+	return true
+}
+
+func main() {
+
 	cfg := lab.Config{
-		In:     []int{2},
-		Out:    []int{1},
+		In:     2,
+		Out:    1,
 		Target: []float64{0.0},
 		Limit:  []float64{0.01},
 		Goal:   true,
 		Size:   1000,
-		Aggr:   []string{},
-		Proc:   []string{},
 	}
 	l := lab.New(cfg, &producer{})
 	l.Examine()

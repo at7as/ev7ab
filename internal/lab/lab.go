@@ -1,5 +1,7 @@
 package lab
 
+import "math/rand"
+
 const levelMax int = 9
 
 // Lab ...
@@ -8,33 +10,50 @@ type Lab struct {
 	prod Producer
 	gen  *generator
 	s    state
+	r    *rand.Rand
 }
 
 // Config ...
 type Config struct {
-	In     []int
-	Out    []int
+	In     int
+	Out    int
 	Target []float64
 	Limit  []float64
 	Goal   bool
 	Size   int
-	Aggr   []string
-	Proc   []string
+	Seed   int64
+	Aggr   Aggregator
+	Proc   Processor
 }
 
 type state struct {
+	run  bool
 	ev   *project
 	next bool
+	goal *entity
 	// pop []*entity
 	// top []*entity
-	run  bool
-	goal *entity
 }
 
 // New ...
 func New(cfg Config, prod Producer) *Lab {
 
-	l := &Lab{cfg: cfg, prod: prod, gen: &generator{}}
+	var r *rand.Rand
+	if cfg.Seed != 0 {
+		r = rand.New(rand.NewSource(cfg.Seed))
+	} else {
+		r = rand.New(rand.NewSource(rand.Int63()))
+	}
+
+	if cfg.Aggr == nil {
+		cfg.Aggr = avgAggr
+	}
+
+	if cfg.Proc == nil {
+		cfg.Proc = linearProc
+	}
+
+	l := &Lab{cfg: cfg, prod: prod, gen: &generator{}, r: r}
 
 	return l
 }

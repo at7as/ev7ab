@@ -8,34 +8,96 @@ type project struct {
 }
 
 type model struct {
-	pt *project
-	st []*stage
+	pt     *project
+	link   int
+	matrix []web
+	// in    [][]int
+	// out   [][]int
+	// link [][]int
+	// links int
 }
 
-type stage struct {
-	layout
-	Aggregator
-	Processor
-	level int
+type web struct {
+	in     int
+	out    int
+	outlen int
+	start  int
 }
 
-type layout struct {
-	a  int
-	p  int
-	in []int
-	n  int
-}
+// type stage struct {
+// 	layout
+// 	level int
+// }
+
+// type layout struct {
+// 	in []int
+// 	n  int
+// }
 
 type entity struct {
 	origin *model
-	link   [][][]float64
-	node   [][]*atom
+	link   []float64
+	in     [][]float64
+	out    [][]float64
 	result [][]float64
 }
 
-type atom struct {
-	in    []float64
-	value float64
+// type atom struct {
+// 	in    []float64
+// 	value float64
+// }
+
+func (e *entity) exec(in []float64) *entity {
+
+	e.in[0] = in
+
+	for _, w := range e.origin.matrix {
+
+		for ini, inv := range e.in[w.in] {
+
+			o := w.start + ini*w.outlen
+			for outi := range w.outlen {
+				e.out[w.out][outi] = qlinear(inv, e.link[o+outi])
+			}
+
+		}
+
+	}
+
+	// for i, _ := range e.origin.st {
+
+	// 	n := e.origin.st[i].n
+	// 	for ii, input := range e.link[i] {
+
+	// 		ini := e.origin.st[i].in[ii]
+	// 		nn := len(input) / e.origin.st[i].n
+	// 		if ini > 0 {
+
+	// 			for iii := 0; iii < nn; iii++ {
+	// 				for iiii := 0; iiii < n; iiii++ {
+	// 					e.node[i][iiii].in = append(e.node[i][iiii].in, input[iii*n+iiii]*e.node[ini][iii].value)
+	// 				}
+	// 			}
+
+	// 		} else {
+
+	// 			for iii := 0; iii < nn; iii++ {
+	// 				for iiii := 0; iiii < n; iiii++ {
+	// 					e.node[i][iiii].in = append(e.node[i][iiii].in, input[iii*n+iiii]*in[iii])
+	// 				}
+	// 			}
+
+	// 		}
+
+	// 	}
+
+	// 	// for _, a := range e.node[i] {
+	// 	// 	a.value = s.Processor(a.value, s.Aggregator(a.in))
+	// 	// }
+
+	// }
+
+	return e
 }
 
 func (p *project) last() []float64 {
@@ -43,52 +105,14 @@ func (p *project) last() []float64 {
 	return p.result[len(p.result)-1]
 }
 
-func (e *entity) exec(in []float64) *entity {
-
-	for i, s := range e.origin.st {
-
-		n := e.origin.st[i].n
-		for ii, input := range e.link[i] {
-
-			ini := e.origin.st[i].in[ii]
-			nn := len(input) / e.origin.st[i].n
-			if ini > 0 {
-
-				for iii := 0; iii < nn; iii++ {
-					for iiii := 0; iiii < n; iiii++ {
-						e.node[i][iiii].in = append(e.node[i][iiii].in, input[iii*n+iiii]*e.node[ini][iii].value)
-					}
-				}
-
-			} else {
-
-				for iii := 0; iii < nn; iii++ {
-					for iiii := 0; iiii < n; iiii++ {
-						e.node[i][iiii].in = append(e.node[i][iiii].in, input[iii*n+iiii]*in[iii])
-					}
-				}
-
-			}
-
-		}
-
-		for _, a := range e.node[i] {
-			a.value = s.Processor(a.value, s.Aggregator(a.in))
-		}
-
-	}
-
-	return e
-}
-
 func (e *entity) value() []float64 {
 
-	out := make([]float64, len(e.node[len(e.node)-1]))
-	for i, a := range e.node[len(e.node)-1] {
-		out[i] = a.value
-	}
+	// out := make([]float64, len(e.node[len(e.node)-1]))
+	// for i, a := range e.node[len(e.node)-1] {
+	// 	out[i] = a.value
+	// }
 
-	return out
+	return []float64{}
 }
 
 func (e *entity) last() []float64 {
