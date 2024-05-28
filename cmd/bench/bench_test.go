@@ -10,18 +10,19 @@ import (
 
 var r []*rand.Rand
 var inputRandom *rand.Rand
-var n int = 10
-var nn int = 100
+var ni int = 1
+var ne int = 100
+var nn int = 10
 var input [][]float64
 var p01 *project01 = &project01{}
 
 func init() {
-	r = make([]*rand.Rand, n)
+	r = make([]*rand.Rand, ne)
 	for i := range r {
 		r[i] = rand.New(rand.NewSource(rand.Int63()))
 	}
 	inputRandom = rand.New(rand.NewSource(rand.Int63()))
-	input = make([][]float64, n)
+	input = make([][]float64, ni)
 	for i := range input {
 		input[i] = make([]float64, nn)
 		for ii := range nn {
@@ -30,30 +31,51 @@ func init() {
 	}
 	p01.origin = &model01{
 		pt:   p01,
-		link: 70000,
+		link: 0,
 		in:   []int{nn, nn, nn, nn, nn, nn, nn},
 		out:  [][2]int{{nn, nn}, {nn, nn}, {nn, nn}, {nn, nn}, {nn, nn + nn}, {nn, nn}},
 		matrix: []web01{
 			{0, 0, nn, 0, 1, 0, true},
-			{1, 1, nn, 0, 2, 10000, true},
-			{1, 2, nn, 0, 3, 20000, true},
-			{2, 3, nn, 0, 4, 30000, true},
-			{2, 4, nn, 0, 5, 40000, false},
-			{3, 4, nn, nn, 5, 50000, true},
-			{3, 5, nn, 0, 6, 60000, true},
+			{1, 1, nn, 0, 2, 0, true},
+			{1, 2, nn, 0, 3, 0, true},
+			{2, 3, nn, 0, 4, 0, true},
+			{2, 4, nn, 0, 5, 0, false},
+			{3, 4, nn, nn, 5, 0, true},
+			{3, 5, nn, 0, 6, 0, true},
 		},
 	}
-	p01.pop = make([]*entity01, n)
-	for i := range p01.pop {
-		p01.pop[i] = spawn01(p01.origin, r[i])
+	for i := range p01.origin.matrix {
+		p01.origin.matrix[i].stlink = i * nn * nn
 	}
+	p01.origin.link += nn * nn
+	p01.pop = make([]*entity01, ne)
+
 }
+
+// func Benchmark_04(b *testing.B) {
+// 	for i := 0; i < b.N; i++ {
+// 		wg := &sync.WaitGroup{}
+// 		for ii := range p01.pop {
+// 			wg.Add(1)
+// 			go spawn02(p01.origin, r[ii], wg, ii)
+// 		}
+// 		wg.Wait()
+// 		for ii := range p01.pop {
+// 			wg.Add(1)
+// 			go execGroup(ii, wg)
+// 		}
+// 		wg.Wait()
+// 	}
+// }
 
 func Benchmark_01spawn(b *testing.B) {
 	for i := 0; i < b.N; i++ {
+		wg := &sync.WaitGroup{}
 		for ii := range p01.pop {
-			p01.pop[ii] = spawn01(p01.origin, r[ii])
+			wg.Add(1)
+			go spawn01(p01.origin, r[ii], wg, ii)
 		}
+		wg.Wait()
 	}
 }
 
@@ -62,32 +84,66 @@ func Benchmark_02spawn(b *testing.B) {
 		wg := &sync.WaitGroup{}
 		for ii := range p01.pop {
 			wg.Add(1)
-			spawn02(p01.origin, r[ii], wg, p01, ii)
+			go spawn02(p01.origin, r[ii], wg, ii)
 		}
 		wg.Wait()
 	}
 }
 
-// func Benchmark_01exec(b *testing.B) {
-// 	for i := 0; i < b.N; i++ {
-// 		for ii := range p01.pop {
-// 			for _, v := range input {
-// 				p01.pop[ii].exec(v)
-// 			}
-// 		}
-// 	}
-// }
+func Benchmark_03spawn(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		wg := &sync.WaitGroup{}
+		for ii := range p01.pop {
+			wg.Add(1)
+			go spawn03(p01.origin, r[ii], wg, ii)
+		}
+		wg.Wait()
+	}
+}
 
-// func Benchmark_01full(b *testing.B) {
-// 	for i := 0; i < b.N; i++ {
-// 		for ii := range p01.pop {
-// 			p01.pop[ii] = spawn01(p01.origin)
-// 			for _, v := range input {
-// 				p01.pop[ii].exec(v)
-// 			}
-// 		}
-// 	}
-// }
+func Benchmark_04spawn(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		wg := &sync.WaitGroup{}
+		for ii := range p01.pop {
+			wg.Add(1)
+			go spawn04(p01.origin, r[ii], wg, ii)
+		}
+		wg.Wait()
+	}
+}
+
+func Benchmark_05spawn(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		wg := &sync.WaitGroup{}
+		for ii := range p01.pop {
+			wg.Add(1)
+			go spawn05(p01.origin, r[ii], wg, ii)
+		}
+		wg.Wait()
+	}
+}
+
+func Benchmark_06spawn(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		wg := &sync.WaitGroup{}
+		for ii := range p01.pop {
+			wg.Add(1)
+			go spawn06(p01.origin, r[ii], wg, ii)
+		}
+		wg.Wait()
+	}
+}
+
+// pool of []
+// deep clone of origin with []
+// one [] and exec without goroutines
+
+func execGroup(ii int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for _, v := range input {
+		p01.pop[ii].exec3(v)
+	}
+}
 
 type project01 struct {
 	origin *model01
@@ -112,35 +168,36 @@ type web01 struct {
 	end    bool
 }
 
-func spawn01(o *model01, rr *rand.Rand) *entity01 {
-	e := &entity01{
+func spawn01(o *model01, rr *rand.Rand, wg *sync.WaitGroup, iii int) {
+	defer wg.Done()
+	e := entity01{
 		origin: o,
-		link:   make([]float64, o.link),
-		in:     make([][]float64, len(o.in)),
-		out:    make([][][]float64, len(o.in)),
+		// link:   make([]float64, o.link),
+		// in:     make([][]float64, len(o.in)),
+		// out:    make([][][]float64, len(o.out)),
 	}
-	for i := range o.link {
-		e.link[i] = rr.Float64()
-	}
-	for i, v := range o.in {
-		e.in[i] = make([]float64, v)
-	}
-	for i, v := range o.out {
-		e.out[i] = make([][]float64, v[0])
-		for ii := range e.out[i] {
-			e.out[i][ii] = make([]float64, v[1])
-		}
-	}
-	return e
+	// for i := range o.link {
+	// 	e.link[i] = rr.Float64()
+	// }
+	// for i, v := range o.in {
+	// 	e.in[i] = make([]float64, v)
+	// }
+	// for i, v := range o.out {
+	// 	e.out[i] = make([][]float64, v[0])
+	// 	for ii := range e.out[i] {
+	// 		e.out[i][ii] = make([]float64, v[1])
+	// 	}
+	// }
+	p01.pop[iii] = &e
 }
 
-func spawn02(o *model01, rr *rand.Rand, wg *sync.WaitGroup, p *project01, iii int) {
+func spawn02(o *model01, rr *rand.Rand, wg *sync.WaitGroup, iii int) {
 	defer wg.Done()
 	e := &entity01{
 		origin: o,
 		link:   make([]float64, o.link),
 		in:     make([][]float64, len(o.in)),
-		out:    make([][][]float64, len(o.in)),
+		out:    make([][][]float64, len(o.out)),
 	}
 	for i := range o.link {
 		e.link[i] = rr.Float64()
@@ -154,12 +211,99 @@ func spawn02(o *model01, rr *rand.Rand, wg *sync.WaitGroup, p *project01, iii in
 			e.out[i][ii] = make([]float64, v[1])
 		}
 	}
-	p.pop[iii] = e
+	p01.pop[iii] = e
 }
 
-func random(e *entity01, i int, rr *rand.Rand, wg *sync.WaitGroup) {
-	e.link[i] = rr.Float64()
-	wg.Done()
+func spawn03(o *model01, rr *rand.Rand, wg *sync.WaitGroup, iii int) {
+	defer wg.Done()
+	e := entity01{
+		origin: o,
+		link:   make([]float64, o.link),
+		// in:     make([][]float64, len(o.in)),
+		// out:    make([][][]float64, len(o.out)),
+	}
+	// for i := range o.link {
+	// 	e.link[i] = rr.Float64()
+	// }
+	// for i, v := range o.in {
+	// 	e.in[i] = make([]float64, v)
+	// }
+	// for i, v := range o.out {
+	// 	e.out[i] = make([][]float64, v[0])
+	// 	for ii := range e.out[i] {
+	// 		e.out[i][ii] = make([]float64, v[1])
+	// 	}
+	// }
+	p01.pop[iii] = &e
+}
+
+func spawn04(o *model01, rr *rand.Rand, wg *sync.WaitGroup, iii int) {
+	defer wg.Done()
+	e := entity01{
+		origin: o,
+		link:   make([]float64, o.link),
+		// in:     make([][]float64, len(o.in)),
+		// out:    make([][][]float64, len(o.out)),
+	}
+	for i := range o.link {
+		e.link[i] = rr.Float64()
+	}
+	// for i, v := range o.in {
+	// 	e.in[i] = make([]float64, v)
+	// }
+	// for i, v := range o.out {
+	// 	e.out[i] = make([][]float64, v[0])
+	// 	for ii := range e.out[i] {
+	// 		e.out[i][ii] = make([]float64, v[1])
+	// 	}
+	// }
+	p01.pop[iii] = &e
+}
+
+func spawn05(o *model01, rr *rand.Rand, wg *sync.WaitGroup, iii int) {
+	defer wg.Done()
+	e := entity01{
+		origin: o,
+		link:   make([]float64, o.link),
+		in:     make([][]float64, len(o.in)),
+		// out:    make([][][]float64, len(o.out)),
+	}
+	for i := range o.link {
+		e.link[i] = rr.Float64()
+	}
+	// for i, v := range o.in {
+	// 	e.in[i] = make([]float64, v)
+	// }
+	// for i, v := range o.out {
+	// 	e.out[i] = make([][]float64, v[0])
+	// 	for ii := range e.out[i] {
+	// 		e.out[i][ii] = make([]float64, v[1])
+	// 	}
+	// }
+	p01.pop[iii] = &e
+}
+
+func spawn06(o *model01, rr *rand.Rand, wg *sync.WaitGroup, iii int) {
+	defer wg.Done()
+	e := entity01{
+		origin: o,
+		link:   make([]float64, o.link),
+		in:     make([][]float64, len(o.in)),
+		// out:    make([][][]float64, len(o.out)),
+	}
+	for i := range o.link {
+		e.link[i] = rr.Float64()
+	}
+	for i, v := range o.in {
+		e.in[i] = make([]float64, v)
+	}
+	// for i, v := range o.out {
+	// 	e.out[i] = make([][]float64, v[0])
+	// 	for ii := range e.out[i] {
+	// 		e.out[i][ii] = make([]float64, v[1])
+	// 	}
+	// }
+	p01.pop[iii] = &e
 }
 
 type entity01 struct {
@@ -169,7 +313,7 @@ type entity01 struct {
 	out    [][][]float64
 }
 
-func (e *entity01) exec(in []float64) {
+func (e *entity01) exec3(in []float64) {
 	outini := 0
 	o := 0
 	e.in[0] = in
@@ -178,7 +322,9 @@ func (e *entity01) exec(in []float64) {
 			outini = w.stin + ini
 			o = w.stlink + ini*w.outlen
 			for outi := range w.outlen {
-				e.out[w.out][outi][outini] = qlinear(inv, e.link[o+outi])
+				l := e.link[o+outi]
+				e.out[w.out][outi][outini] = qlinear(inv, l)
+				// += then div
 			}
 		}
 		if w.end {
