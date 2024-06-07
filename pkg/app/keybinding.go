@@ -345,9 +345,8 @@ func onResultEditProject(g *gocui.Gui, v *gocui.View) error {
 
 func onResultSelectProject(g *gocui.Gui, v *gocui.View) error {
 
-	if !app.run {
-		// if len(app.result.l)
-		// app.result.a
+	if !app.run && app.result.a != nil {
+		app.result.a.ui.selected = !app.result.a.ui.selected
 	}
 
 	return nil
@@ -385,4 +384,4 @@ func onResultShowToggle(g *gocui.Gui, v *gocui.View) error {
 // show all ctrlW
 // delete holded (delete all ents) ctrlT (terminate)
 
-// what do when IL or PL is changed?!?
+// what do when ProjectList is changed?!?
