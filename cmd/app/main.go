@@ -3,7 +3,7 @@ package main
 import (
 	"math"
 
-	"github.com/at7as/ev7ab/internal/lab"
+	"github.com/at7as/ev7ab/pkg/lab"
 )
 
 type producer struct{}

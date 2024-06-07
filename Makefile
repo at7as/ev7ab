@@ -18,3 +18,6 @@ pprof:
 
 try:
 	@go run ./cmd/try
+
+run-ctrl:
+	@go run ./cmd/ctrl
