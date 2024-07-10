@@ -23,8 +23,8 @@ func (w *KeybarWidget) Layout(g *gocui.Gui) error {
 		return err
 	}
 	v.Clear()
-
 	v.Frame = false
+
 	fmt.Fprintf(v, " \033[37;7mF1\033[0m Help  \033[37;7mF2\033[0m\033[3%s;%sm Setup \033[0m \033[37;7mF3\033[0m\033[3%s;%sm Result \033[0m \033[37;7mF4\033[0m\033[3%s;%sm Edit \033[0m", w.getColorF(0), w.getColorB(0), w.getColorF(1), w.getColorB(1), w.getColorF(2), w.getColorB(2))
 	// switch app.view {
 	// case 0:

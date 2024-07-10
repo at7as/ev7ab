@@ -2,15 +2,12 @@ package app
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/jroimartin/gocui"
 )
 
 func setKeybinding(g *gocui.Gui) error {
-
-	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
-		return err
-	}
 
 	if err := g.SetKeybinding("", gocui.KeyCtrlQ, gocui.ModNone, quit); err != nil {
 		return err
@@ -28,7 +25,15 @@ func setKeybinding(g *gocui.Gui) error {
 		return err
 	}
 
-	if err := g.SetKeybinding("setup", gocui.KeyF4, gocui.ModNone, showEdit); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyF4, gocui.ModNone, showEdit); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("setup", gocui.KeyCtrlS, gocui.ModNone, onSetupSave); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("setup", gocui.KeyCtrlL, gocui.ModNone, onSetupLoad); err != nil {
 		return err
 	}
 
@@ -68,15 +73,11 @@ func setKeybinding(g *gocui.Gui) error {
 		return err
 	}
 
-	if err := g.SetKeybinding("result", gocui.KeyCtrlD, gocui.ModNone, onResultDubProject); err != nil {
-		return err
-	}
-
-	if err := g.SetKeybinding("result", gocui.KeyF4, gocui.ModNone, onResultEditProject); err != nil {
-		return err
-	}
-
 	if err := g.SetKeybinding("result", gocui.KeyCtrlE, gocui.ModNone, onResultEditProject); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("result", gocui.KeyCtrlD, gocui.ModNone, onResultDubProject); err != nil {
 		return err
 	}
 
@@ -100,7 +101,79 @@ func setKeybinding(g *gocui.Gui) error {
 		return err
 	}
 
-	if err := g.SetKeybinding("result", gocui.KeyCtrlTilde, gocui.ModNone, onResultShowToggle); err != nil {
+	if err := g.SetKeybinding("result", gocui.KeyTab, gocui.ModNone, onResultShowToggle); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyCtrlN, gocui.ModNone, onEditNewProject); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyCtrlE, gocui.ModNone, onEditEditProject); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyCtrlD, gocui.ModNone, onEditDubProject); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyCtrlS, gocui.ModNone, onEditSaveProject); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyCtrlV, gocui.ModNone, onEditValidateProject); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyArrowLeft, gocui.ModNone, onEditKeyArrowLeft); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyArrowRight, gocui.ModNone, onEditKeyArrowRight); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyArrowUp, gocui.ModNone, onEditKeyArrowUp); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyArrowDown, gocui.ModNone, onEditKeyArrowDown); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyInsert, gocui.ModNone, onEditInsertStage); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyDelete, gocui.ModNone, onEditDeleteStage); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyEnter, gocui.ModNone, onEditInsertNode); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeySpace, gocui.ModNone, onEditEditNodeSource); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyCtrlSpace, gocui.ModNone, onEditEditNode); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyBackspace, gocui.ModNone, onEditDeleteNode); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("edit", gocui.KeyEsc, gocui.ModNone, onEditEsc); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("nodesize", gocui.KeyEsc, gocui.ModNone, closeNodeSize); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("nodesize", gocui.KeyEnter, gocui.ModNone, closeEnterNodeSize); err != nil {
 		return err
 	}
 
@@ -121,10 +194,17 @@ func clearWindow(g *gocui.Gui, help bool) {
 	if app.setupitem {
 		closeSetupItem(g, nil)
 	}
+	if app.nodesize {
+		closeNodeSize(g, nil)
+	}
 
 }
 
 func toggleAppRun(g *gocui.Gui) {
+
+	if !app.run && app.result.activated() == 0 {
+		return
+	}
 
 	app.run = !app.run
 
@@ -190,10 +270,6 @@ func showEdit(g *gocui.Gui, v *gocui.View) error {
 	app.view = 2
 	_, err := setCurrentViewOnTop(g, "edit")
 
-	if app.edit == nil {
-		app.edit = newProject(nil)
-	}
-
 	return err
 }
 
@@ -215,7 +291,23 @@ func toggleHelp(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func onSetupSave(g *gocui.Gui, v *gocui.View) error {
+
+	app.state.result = app.result
+
+	return nil
+}
+
+func onSetupLoad(g *gocui.Gui, v *gocui.View) error {
+
+	return nil
+}
+
 func onSetupKeyArrowUp(g *gocui.Gui, v *gocui.View) error {
+
+	if app.run {
+		return nil
+	}
 
 	app.setup.selectUp()
 
@@ -224,12 +316,20 @@ func onSetupKeyArrowUp(g *gocui.Gui, v *gocui.View) error {
 
 func onSetupKeyArrowDown(g *gocui.Gui, v *gocui.View) error {
 
+	if app.run {
+		return nil
+	}
+
 	app.setup.selectDown()
 
 	return nil
 }
 
 func openSetupItem(g *gocui.Gui, v *gocui.View) error {
+
+	if app.run {
+		return nil
+	}
 
 	if err := g.DeleteView("setupitem"); err != nil && err != gocui.ErrUnknownView {
 		return err
@@ -300,50 +400,73 @@ func onResultRunToggle(g *gocui.Gui, v *gocui.View) error {
 
 func onResultKeyArrowUp(g *gocui.Gui, v *gocui.View) error {
 
-	app.result.selectUp()
+	if app.run {
+		return nil
+	}
+
+	app.result.selectUp(1)
 
 	return nil
 }
 
 func onResultKeyArrowDown(g *gocui.Gui, v *gocui.View) error {
 
-	app.result.selectDown()
+	if app.run {
+		return nil
+	}
+
+	app.result.selectDown(1)
 
 	return nil
 }
 
 func onResultNewProject(g *gocui.Gui, v *gocui.View) error {
 
-	app.edit = newProject(nil)
-
-	return showEdit(g, v)
-}
-
-func onResultDubProject(g *gocui.Gui, v *gocui.View) error {
-
-	if len(app.result.l) > 0 {
-		app.edit = newProject(app.result.a)
-	} else {
-		return nil
+	p, err := newProject(nil)
+	if err != nil {
+		return err
 	}
+	app.edit = p
+	app.cursor = projectModelSource{0, 0}
+	app.scroll = projectModelSource{0, 0}
 
 	return showEdit(g, v)
 }
 
 func onResultEditProject(g *gocui.Gui, v *gocui.View) error {
 
-	if app.edit == nil {
-		if !app.run && len(app.result.l) > 0 {
-			app.edit = app.result.a
-		} else {
-			app.edit = newProject(nil)
-		}
+	if app.result.a != nil {
+		app.edit = app.result.a
+		app.edit.edit()
+		app.cursor = projectModelSource{0, 0}
+		app.scroll = projectModelSource{0, 0}
+		return showEdit(g, v)
 	}
 
-	return showEdit(g, v)
+	return nil
+}
+
+func onResultDubProject(g *gocui.Gui, v *gocui.View) error {
+
+	if app.result.a != nil {
+		p, err := newProject(app.result.a)
+		if err != nil {
+			return err
+		}
+		app.edit = p
+		app.cursor = projectModelSource{0, 0}
+		app.scroll = projectModelSource{0, 0}
+		return showEdit(g, v)
+	}
+
+	return nil
 }
 
 func onResultSelectProject(g *gocui.Gui, v *gocui.View) error {
+
+	if app.run {
+		return nil
+	}
 
 	if !app.run && app.result.a != nil {
 		app.result.a.ui.selected = !app.result.a.ui.selected
@@ -354,34 +477,428 @@ func onResultSelectProject(g *gocui.Gui, v *gocui.View) error {
 
 func onResultSelectAllProject(g *gocui.Gui, v *gocui.View) error {
 
+	if app.run {
+		return nil
+	}
+
+	selected := !app.result.selected()
+	for i := range app.result.l {
+		app.result.l[i].ui.selected = selected
+	}
+
 	return nil
 }
 
 func onResultHoldProject(g *gocui.Gui, v *gocui.View) error {
+
+	if app.run {
+		return nil
+	}
+
+	if app.result.selected() {
+		for i, v := range app.result.l {
+			if v.status == psActive && v.ui.selected {
+				app.result.l[i].status = psHolded
+			}
+		}
+	} else {
+		if app.result.a.status == psActive {
+			app.result.a.status = psHolded
+		}
+	}
+
+	app.result.next()
 
 	return nil
 }
 
 func onResultActivateProject(g *gocui.Gui, v *gocui.View) error {
 
+	if app.run {
+		return nil
+	}
+
+	if !app.result.holded {
+		return nil
+	}
+
+	if app.result.selected() {
+		for i, v := range app.result.l {
+			if v.status == psHolded && v.ui.selected {
+				app.result.l[i].status = psActive
+			}
+		}
+	} else {
+		if app.result.a.status == psHolded {
+			app.result.a.status = psActive
+		}
+	}
+
 	return nil
 }
 
 func onResultTerminateProject(g *gocui.Gui, v *gocui.View) error {
+
+	if app.run {
+		return nil
+	}
+
+	if app.result.selected() {
+		for i, v := range app.result.l {
+			if v.ui.selected {
+				app.result.l[i].ui.selected = false
+				app.result.l[i].status = psTerminated
+			}
+		}
+	} else {
+		app.result.a.ui.selected = false
+		app.result.a.status = psTerminated
+	}
+
+	app.result.next()
 
 	return nil
 }
 
 func onResultShowToggle(g *gocui.Gui, v *gocui.View) error {
 
+	if app.run {
+		return nil
+	}
+
+	app.result.holded = !app.result.holded
+
+	app.result.next()
+
 	return nil
 }
 
-// select project
-// do with selected
-// hold ctrlH
-// activate ctrlA
-// show all ctrlW
-// delete holded (delete all ents) ctrlT (terminate)
+func onEditNewProject(g *gocui.Gui, v *gocui.View) error {
 
-// what do when ProjectList is changed?!?
+	app.linkedit = false
+
+	p, err := newProject(nil)
+	if err != nil {
+		return err
+	}
+	app.edit = p
+	app.cursor = projectModelSource{0, 0}
+	app.scroll = projectModelSource{0, 0}
+
+	return nil
+}
+
+func onEditEditProject(g *gocui.Gui, v *gocui.View) error {
+
+	app.linkedit = false
+
+	if app.edit != nil {
+		app.edit.edit()
+	}
+
+	return nil
+}
+
+func onEditDubProject(g *gocui.Gui, v *gocui.View) error {
+
+	app.linkedit = false
+
+	if app.result.a != nil {
+		p, err := newProject(app.result.a)
+		if err != nil {
+			return err
+		}
+		app.edit = p
+		app.cursor = projectModelSource{0, 0}
+		app.scroll = projectModelSource{0, 0}
+	}
+
+	return nil
+}
+
+func onEditSaveProject(g *gocui.Gui, v *gocui.View) error {
+
+	app.linkedit = false
+
+	if app.edit != nil {
+		app.edit.save()
+	}
+
+	return nil
+}
+
+func onEditValidateProject(g *gocui.Gui, v *gocui.View) error {
+
+	app.linkedit = false
+
+	if app.edit != nil {
+		if !app.edit.validate() {
+			app.invalid = true
+			go hideInvalid()
+		}
+	}
+
+	return nil
+}
+
+func onEditKeyArrowLeft(g *gocui.Gui, v *gocui.View) error {
+
+	selectStageLeft()
+	shiftCursorY()
+
+	return nil
+}
+
+func onEditKeyArrowRight(g *gocui.Gui, v *gocui.View) error {
+
+	selectStageRight()
+	shiftCursorY()
+
+	return nil
+}
+
+func onEditKeyArrowUp(g *gocui.Gui, v *gocui.View) error {
+
+	selectNodeUp()
+
+	return nil
+}
+
+func onEditKeyArrowDown(g *gocui.Gui, v *gocui.View) error {
+
+	selectNodeDown()
+
+	return nil
+}
+
+func onEditInsertStage(g *gocui.Gui, v *gocui.View) error {
+
+	if app.edit == nil {
+		return nil
+	} else {
+		if !app.edit.n.dirty {
+			return nil
+		}
+	}
+
+	app.linkedit = false
+	insertStage()
+	shiftCursorY()
+
+	return nil
+}
+
+func onEditDeleteStage(g *gocui.Gui, v *gocui.View) error {
+
+	if app.edit == nil {
+		return nil
+	} else {
+		if !app.edit.n.dirty {
+			return nil
+		}
+	}
+
+	app.linkedit = false
+	deleteStage()
+	shiftCursorY()
+	app.edit.n.measure()
+
+	return nil
+}
+
+func onEditInsertNode(g *gocui.Gui, v *gocui.View) error {
+
+	if app.edit == nil {
+		return nil
+	} else {
+		if !app.edit.n.dirty {
+			return nil
+		}
+	}
+
+	app.linkedit = false
+
+	if app.cursor.s > 0 && app.cursor.s < len(app.edit.n.model)-1 {
+		app.edit.n.model[app.cursor.s].addNode()
+		app.cursor.n = len(app.edit.n.model[app.cursor.s].stage) - 1
+		return openNodeSize(g, v)
+	}
+
+	app.edit.n.measure()
+
+	return nil
+}
+
+func onEditEditNodeSource(g *gocui.Gui, v *gocui.View) error {
+
+	if app.edit == nil {
+		return nil
+	} else {
+		if !app.edit.n.dirty {
+			return nil
+		}
+	}
+
+	if app.linkedit {
+		if app.cursor.s != app.link.s || app.cursor.n != app.link.n {
+
+			found := false
+			for i, src := range app.edit.n.model[app.cursor.s].stage[app.cursor.n].source {
+				if src.s == app.link.s && src.n == app.link.n {
+					app.edit.n.model[app.cursor.s].stage[app.cursor.n].source = append(app.edit.n.model[app.cursor.s].stage[app.cursor.n].source[:i], app.edit.n.model[app.cursor.s].stage[app.cursor.n].source[i+1:]...)
+					found = true
+					break
+				}
+			}
+
+			if !found && app.link.s < app.cursor.s && len(app.edit.n.model[app.link.s].stage) > app.link.n {
+				app.edit.n.model[app.cursor.s].stage[app.cursor.n].source = append(app.edit.n.model[app.cursor.s].stage[app.cursor.n].source, projectModelSource{s: app.link.s, n: app.link.n})
+			}
+
+		}
+	} else {
+		if len(app.edit.n.model[app.cursor.s].stage) == 0 {
+			return nil
+		}
+		app.link.s = app.cursor.s
+		app.link.n = app.cursor.n
+	}
+
+	app.linkedit = !app.linkedit
+	app.edit.n.measure()
+
+	return nil
+}
+
+func onEditEditNode(g *gocui.Gui, v *gocui.View) error {
+
+	if app.edit == nil {
+		return nil
+	} else {
+		if !app.edit.n.dirty {
+			return nil
+		}
+	}
+
+	app.linkedit = false
+	app.edit.n.measure()
+
+	return openNodeSize(g, v)
+}
+
+func onEditDeleteNode(g *gocui.Gui, v *gocui.View) error {
+
+	if app.edit == nil {
+		return nil
+	} else {
+		if !app.edit.n.dirty {
+			return nil
+		}
+	}
+
+	app.linkedit = false
+
+	if app.cursor.s > 0 && app.cursor.s < len(app.edit.n.model)-1 {
+		app.edit.n.model[app.cursor.s].removeNode(app.cursor.n)
+		for i := range app.edit.n.model {
+			for ii := range app.edit.n.model[i].stage {
+				for iii, src := range app.edit.n.model[i].stage[ii].source {
+					if src.s == app.cursor.s && src.n == app.cursor.n {
+						app.edit.n.model[i].stage[ii].source = append(app.edit.n.model[i].stage[ii].source[:iii], app.edit.n.model[i].stage[ii].source[iii+1:]...)
+						break
+					}
+				}
+			}
+		}
+
+	}
+	shiftCursorY()
+	app.edit.n.measure()
+
+	return nil
+}
+
+func openNodeSize(g *gocui.Gui, v *gocui.View) error {
+
+	if app.edit == nil {
+		return nil
+	} else {
+		if !app.edit.n.dirty {
+			return nil
+		}
+	}
+
+	app.linkedit = false
+
+	if err := g.DeleteView("nodesize"); err != nil && err != gocui.ErrUnknownView {
+		return err
+	}
+
+	app.nodesize = true
+	g.Cursor = !app.help
+
+	maxX, maxY := g.Size()
+	view, err := g.SetView("nodesize", maxX/2-30, maxY/2-2, maxX/2+30, maxY/2)
+	if err != nil && err != gocui.ErrUnknownView {
+		return err
+	}
+
+	view.Editable = true
+	view.Frame = true
+	view.Title = " Size "
+	value := strconv.Itoa(app.edit.n.model[app.cursor.s].stage[app.cursor.n].size)
+	fmt.Fprintf(view, "%v", value)
+	if err := view.SetCursor(len(value), 0); err != nil {
+		return err
+	}
+
+	_, err = setCurrentViewOnTop(g, "nodesize")
+
+	return err
+}
+
+func closeNodeSize(g *gocui.Gui, v *gocui.View) error {
+
+	app.nodesize = false
+	g.Cursor = false
+
+	if err := g.DeleteView("nodesize"); err != nil {
+		return err
+	}
+
+	_, err := setCurrentViewOnTop(g, "edit")
+
+	return err
+}
+
+func closeEnterNodeSize(g *gocui.Gui, v *gocui.View) error {
+
+	app.nodesize = false
+	g.Cursor = false
+
+	value, err := v.Line(0)
+	if err != nil {
+		value = ""
+	}
+	size, err := strconv.Atoi(value)
+	if err != nil {
+		size = 0
+	}
+	app.edit.n.model[app.cursor.s].stage[app.cursor.n].size = size
+	app.edit.n.measure()
+
+	if err := g.DeleteView("nodesize"); err != nil {
+		return err
+	}
+
+	_, err = setCurrentViewOnTop(g, "edit")
+
+	return err
+}
+
+func onEditEsc(g *gocui.Gui, v *gocui.View) error {
+
+	app.linkedit = false
+
+	return nil
+}

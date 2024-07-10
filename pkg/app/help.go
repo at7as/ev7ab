@@ -26,7 +26,8 @@ func (w *HelpWindowWidget) Layout(g *gocui.Gui) error {
 
 	v.Frame = true
 	v.Title = " Help "
-	fmt.Fprintf(v, "%v\n", app.view)
+
+	// fmt.Fprintf(v, "%v\n", app.view)
 	for i := 0; i <= 7; i++ {
 		for _, j := range []int{1, 4, 7} {
 			fmt.Fprintf(v, "\033[3%d;%dm#\033[0m", i, j)

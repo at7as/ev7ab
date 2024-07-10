@@ -21,12 +21,12 @@ func (w *SetupViewWidget) Layout(g *gocui.Gui) error {
 		return err
 	}
 	v.Clear()
-
 	v.Frame = true
 	v.Title = " Setup "
+
 	fmt.Fprintf(v, " \n")
 	for i, it := range app.setup.l {
-		if i == app.setup.ai {
+		if i == app.setup.ai && !app.run {
 			fmt.Fprintf(v, "  \033[37;7m%s  %s\033[0m\n\n", it.title, it.value)
 		} else {
 			fmt.Fprintf(v, "  %s  %s\n\n", it.title, it.value)
@@ -37,8 +37,8 @@ func (w *SetupViewWidget) Layout(g *gocui.Gui) error {
 }
 
 type itemList struct {
-	l []*item
-	// m map[string]*item
+	l  []*item
+	m  map[string]*item
 	a  *item
 	ai int
 }
@@ -48,11 +48,11 @@ func newItemList(l [][2]string) *itemList {
 	il := itemList{}
 
 	il.l = make([]*item, len(l))
-	// il.m = make(map[string]*item)
+	il.m = make(map[string]*item)
 	maxLen := 0
 	for i, v := range l {
 		il.l[i] = &item{key: v[0], title: v[0], value: v[1]}
-		// il.m[v[0]] = il.l[i]
+		il.m[v[0]] = il.l[i]
 		maxLen = max(maxLen, len(v[0]))
 	}
 	for i, v := range il.l {
