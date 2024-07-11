@@ -82,7 +82,7 @@ func (w *EditViewWidget) Layout(g *gocui.Gui) error {
 			if i == app.cursor.s {
 				fillStage = "2"
 			}
-			if app.linkedit && i == app.link.s {
+			if app.linkEdit && i == app.link.s {
 				fillStage = "2"
 			}
 
@@ -133,7 +133,7 @@ func (w *EditViewWidget) Layout(g *gocui.Gui) error {
 				if i == app.cursor.s && ii == app.cursor.n {
 					fillNode = "5"
 				}
-				if app.linkedit && i == app.link.s && ii == app.link.n {
+				if app.linkEdit && i == app.link.s && ii == app.link.n {
 					fillNodeChar = "▓"
 				}
 				bufWhite[oneii2][i5] = fmt.Sprintf("\033[3%s;4m%s", fillNode, fillNodeChar)
@@ -205,7 +205,7 @@ func (w *EditViewWidget) Layout(g *gocui.Gui) error {
 		if len(app.edit.n.model[app.cursor.s].stage) > 0 {
 			for _, src := range app.edit.n.model[app.cursor.s].stage[app.cursor.n].source {
 				fillNodeChar := "█"
-				if app.linkedit && src.s == app.link.s && src.n == app.link.n {
+				if app.linkEdit && src.s == app.link.s && src.n == app.link.n {
 					fillNodeChar = "▓"
 				}
 				bufGreen[1+src.n*2][src.s*5] = fmt.Sprintf("%s", fillNodeChar)
@@ -291,7 +291,7 @@ func (w *EditViewWidget) Layout(g *gocui.Gui) error {
 
 		maxXs := int(math.Floor(float64(maxX)-8.0) / 5.0)
 		maxYn := int(math.Floor(float64(maxY)-11.0)/2.0) - 2
-		if app.linkedit {
+		if app.linkEdit {
 			if app.link.s > app.scroll.s+maxXs {
 				app.scroll.s = app.link.s - maxXs
 			}
@@ -434,7 +434,7 @@ func numberMark(p *project) string {
 
 func selectStageLeft() {
 
-	if app.linkedit {
+	if app.linkEdit {
 		if app.link.s > 0 {
 			app.link.s--
 		}
@@ -448,7 +448,7 @@ func selectStageLeft() {
 
 func selectStageRight() {
 
-	if app.linkedit {
+	if app.linkEdit {
 		if app.link.s < len(app.edit.n.model)-1 {
 			app.link.s++
 		}
@@ -462,7 +462,7 @@ func selectStageRight() {
 
 func selectNodeUp() {
 
-	if app.linkedit {
+	if app.linkEdit {
 		if app.link.n > 0 {
 			app.link.n--
 		}
@@ -476,7 +476,7 @@ func selectNodeUp() {
 
 func selectNodeDown() {
 
-	if app.linkedit {
+	if app.linkEdit {
 		if app.link.n < len(app.edit.n.model[app.link.s].stage)-1 {
 			app.link.n++
 		}
@@ -503,7 +503,7 @@ func deleteStage() {
 
 func shiftCursorY() {
 
-	if app.linkedit {
+	if app.linkEdit {
 		if app.link.n != 0 && app.link.n > len(app.edit.n.model[app.link.s].stage)-1 {
 			app.link.n = max(0, len(app.edit.n.model[app.link.s].stage)-1)
 		}

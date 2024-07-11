@@ -29,13 +29,13 @@ var app application = application{
 		{"Aggr", "avg"},
 		{"Proc", "linear"},
 	}),
-	setupitem: false,
+	setupItem: false,
 	result:    newProjectList(),
 	edit:      nil,
-	nodesize:  false,
+	nodeSize:  false,
 	cursor:    projectModelSource{0, 0},
 	link:      projectModelSource{0, 0},
-	linkedit:  false,
+	linkEdit:  false,
 	invalid:   false,
 	scroll:    projectModelSource{0, 0},
 }
@@ -46,13 +46,13 @@ type application struct {
 	view      int
 	help      bool
 	setup     *itemList
-	setupitem bool
+	setupItem bool
 	result    *projectList
 	edit      *project
-	nodesize  bool
+	nodeSize  bool
 	cursor    projectModelSource
 	link      projectModelSource
-	linkedit  bool
+	linkEdit  bool
 	invalid   bool
 	scroll    projectModelSource
 }
@@ -60,7 +60,17 @@ type application struct {
 // State ...
 type State struct {
 	id     int
+	setup  *itemList
 	result *projectList
+	edit   *project
+}
+
+func (s *State) save() {
+
+}
+
+func (s *State) load() {
+
 }
 
 type Cursor struct {

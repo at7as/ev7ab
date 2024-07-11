@@ -191,10 +191,10 @@ func clearWindow(g *gocui.Gui, help bool) {
 	if app.help && !help {
 		toggleHelp(g, nil)
 	}
-	if app.setupitem {
+	if app.setupItem {
 		closeSetupItem(g, nil)
 	}
-	if app.nodesize {
+	if app.nodeSize {
 		closeNodeSize(g, nil)
 	}
 
@@ -293,12 +293,15 @@ func toggleHelp(g *gocui.Gui, v *gocui.View) error {
 
 func onSetupSave(g *gocui.Gui, v *gocui.View) error {
 
-	app.state.result = app.result
+	// app.state.result = app.result
+	app.state.save()
 
 	return nil
 }
 
 func onSetupLoad(g *gocui.Gui, v *gocui.View) error {
+
+	app.state.load()
 
 	return nil
 }
@@ -335,7 +338,7 @@ func openSetupItem(g *gocui.Gui, v *gocui.View) error {
 		return err
 	}
 
-	app.setupitem = true
+	app.setupItem = true
 	g.Cursor = !app.help
 
 	maxX, maxY := g.Size()
@@ -359,7 +362,7 @@ func openSetupItem(g *gocui.Gui, v *gocui.View) error {
 
 func closeSetupItem(g *gocui.Gui, v *gocui.View) error {
 
-	app.setupitem = false
+	app.setupItem = false
 	g.Cursor = false
 
 	if err := g.DeleteView("setupitem"); err != nil {
@@ -373,7 +376,7 @@ func closeSetupItem(g *gocui.Gui, v *gocui.View) error {
 
 func closeEnterSetupItem(g *gocui.Gui, v *gocui.View) error {
 
-	app.setupitem = false
+	app.setupItem = false
 	g.Cursor = false
 
 	value, err := v.Line(0)
@@ -575,7 +578,7 @@ func onResultShowToggle(g *gocui.Gui, v *gocui.View) error {
 
 func onEditNewProject(g *gocui.Gui, v *gocui.View) error {
 
-	app.linkedit = false
+	app.linkEdit = false
 
 	p, err := newProject(nil)
 	if err != nil {
@@ -590,7 +593,7 @@ func onEditNewProject(g *gocui.Gui, v *gocui.View) error {
 
 func onEditEditProject(g *gocui.Gui, v *gocui.View) error {
 
-	app.linkedit = false
+	app.linkEdit = false
 
 	if app.edit != nil {
 		app.edit.edit()
@@ -601,7 +604,7 @@ func onEditEditProject(g *gocui.Gui, v *gocui.View) error {
 
 func onEditDubProject(g *gocui.Gui, v *gocui.View) error {
 
-	app.linkedit = false
+	app.linkEdit = false
 
 	if app.result.a != nil {
 		p, err := newProject(app.result.a)
@@ -618,7 +621,7 @@ func onEditDubProject(g *gocui.Gui, v *gocui.View) error {
 
 func onEditSaveProject(g *gocui.Gui, v *gocui.View) error {
 
-	app.linkedit = false
+	app.linkEdit = false
 
 	if app.edit != nil {
 		app.edit.save()
@@ -629,7 +632,7 @@ func onEditSaveProject(g *gocui.Gui, v *gocui.View) error {
 
 func onEditValidateProject(g *gocui.Gui, v *gocui.View) error {
 
-	app.linkedit = false
+	app.linkEdit = false
 
 	if app.edit != nil {
 		if !app.edit.validate() {
@@ -681,7 +684,7 @@ func onEditInsertStage(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
-	app.linkedit = false
+	app.linkEdit = false
 	insertStage()
 	shiftCursorY()
 
@@ -698,7 +701,7 @@ func onEditDeleteStage(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
-	app.linkedit = false
+	app.linkEdit = false
 	deleteStage()
 	shiftCursorY()
 	app.edit.n.measure()
@@ -716,7 +719,7 @@ func onEditInsertNode(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
-	app.linkedit = false
+	app.linkEdit = false
 
 	if app.cursor.s > 0 && app.cursor.s < len(app.edit.n.model)-1 {
 		app.edit.n.model[app.cursor.s].addNode()
@@ -739,7 +742,7 @@ func onEditEditNodeSource(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
-	if app.linkedit {
+	if app.linkEdit {
 		if app.cursor.s != app.link.s || app.cursor.n != app.link.n {
 
 			found := false
@@ -764,7 +767,7 @@ func onEditEditNodeSource(g *gocui.Gui, v *gocui.View) error {
 		app.link.n = app.cursor.n
 	}
 
-	app.linkedit = !app.linkedit
+	app.linkEdit = !app.linkEdit
 	app.edit.n.measure()
 
 	return nil
@@ -780,7 +783,7 @@ func onEditEditNode(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
-	app.linkedit = false
+	app.linkEdit = false
 	app.edit.n.measure()
 
 	return openNodeSize(g, v)
@@ -796,7 +799,7 @@ func onEditDeleteNode(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
-	app.linkedit = false
+	app.linkEdit = false
 
 	if app.cursor.s > 0 && app.cursor.s < len(app.edit.n.model)-1 {
 		app.edit.n.model[app.cursor.s].removeNode(app.cursor.n)
@@ -828,13 +831,13 @@ func openNodeSize(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
-	app.linkedit = false
+	app.linkEdit = false
 
 	if err := g.DeleteView("nodesize"); err != nil && err != gocui.ErrUnknownView {
 		return err
 	}
 
-	app.nodesize = true
+	app.nodeSize = true
 	g.Cursor = !app.help
 
 	maxX, maxY := g.Size()
@@ -859,7 +862,7 @@ func openNodeSize(g *gocui.Gui, v *gocui.View) error {
 
 func closeNodeSize(g *gocui.Gui, v *gocui.View) error {
 
-	app.nodesize = false
+	app.nodeSize = false
 	g.Cursor = false
 
 	if err := g.DeleteView("nodesize"); err != nil {
@@ -873,7 +876,7 @@ func closeNodeSize(g *gocui.Gui, v *gocui.View) error {
 
 func closeEnterNodeSize(g *gocui.Gui, v *gocui.View) error {
 
-	app.nodesize = false
+	app.nodeSize = false
 	g.Cursor = false
 
 	value, err := v.Line(0)
@@ -898,7 +901,7 @@ func closeEnterNodeSize(g *gocui.Gui, v *gocui.View) error {
 
 func onEditEsc(g *gocui.Gui, v *gocui.View) error {
 
-	app.linkedit = false
+	app.linkEdit = false
 
 	return nil
 }
