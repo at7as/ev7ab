@@ -1,211 +1,115 @@
-// // Copyright 2014 The gocui Authors. All rights reserved.
-// // Use of this source code is governed by a BSD-style
-// // license that can be found in the LICENSE file.
-
 package main
 
-// import (
-// 	"fmt"
-// 	"io"
-// 	"io/ioutil"
-// 	"log"
-// 	"strings"
+func main() {
 
-// 	"github.com/jroimartin/gocui"
-// )
+	// l := lab.New(&lib.Example1{})
+	// l.AddProject([][]lab.Node{})
 
-// func nextView(g *gocui.Gui, v *gocui.View) error {
-// 	if v == nil || v.Name() == "side" {
-// 		_, err := g.SetCurrentView("main")
-// 		return err
-// 	}
-// 	_, err := g.SetCurrentView("side")
-// 	return err
+}
+
+// type data struct {
+// 	Rows   []*dataRow
+// 	Entity *dataEntity
+// 	S      dataSimple
 // }
 
-// func cursorDown(g *gocui.Gui, v *gocui.View) error {
-// 	if v != nil {
-// 		cx, cy := v.Cursor()
-// 		if err := v.SetCursor(cx, cy+1); err != nil {
-// 			ox, oy := v.Origin()
-// 			if err := v.SetOrigin(ox, oy+1); err != nil {
-// 				return err
-// 			}
-// 		}
-// 	}
-// 	return nil
+// type dataRow struct {
+// 	E   *dataEntity
+// 	S   dataSimple
+// 	I   int
+// 	Str string
 // }
 
-// func cursorUp(g *gocui.Gui, v *gocui.View) error {
-// 	if v != nil {
-// 		ox, oy := v.Origin()
-// 		cx, cy := v.Cursor()
-// 		if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
-// 			if err := v.SetOrigin(ox, oy-1); err != nil {
-// 				return err
-// 			}
-// 		}
-// 	}
-// 	return nil
+// type dataEntity struct {
+// 	I1 int
+// 	I2 *int
 // }
 
-// func getLine(g *gocui.Gui, v *gocui.View) error {
-// 	var l string
-// 	var err error
-
-// 	_, cy := v.Cursor()
-// 	if l, err = v.Line(cy); err != nil {
-// 		l = ""
-// 	}
-
-// 	maxX, maxY := g.Size()
-// 	if v, err := g.SetView("msg", maxX/2-30, maxY/2, maxX/2+30, maxY/2+2); err != nil {
-// 		if err != gocui.ErrUnknownView {
-// 			return err
-// 		}
-// 		fmt.Fprintln(v, l)
-// 		if _, err := g.SetCurrentView("msg"); err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
-// }
-
-// func delMsg(g *gocui.Gui, v *gocui.View) error {
-// 	if err := g.DeleteView("msg"); err != nil {
-// 		return err
-// 	}
-// 	if _, err := g.SetCurrentView("side"); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// func quit(g *gocui.Gui, v *gocui.View) error {
-// 	return gocui.ErrQuit
-// }
-
-// func keybindings(g *gocui.Gui) error {
-// 	if err := g.SetKeybinding("side", gocui.KeyCtrlSpace, gocui.ModNone, nextView); err != nil {
-// 		return err
-// 	}
-// 	if err := g.SetKeybinding("main", gocui.KeyCtrlSpace, gocui.ModNone, nextView); err != nil {
-// 		return err
-// 	}
-// 	if err := g.SetKeybinding("side", gocui.KeyArrowDown, gocui.ModNone, cursorDown); err != nil {
-// 		return err
-// 	}
-// 	if err := g.SetKeybinding("side", gocui.KeyArrowUp, gocui.ModNone, cursorUp); err != nil {
-// 		return err
-// 	}
-// 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
-// 		return err
-// 	}
-// 	if err := g.SetKeybinding("side", gocui.KeyEnter, gocui.ModNone, getLine); err != nil {
-// 		return err
-// 	}
-// 	if err := g.SetKeybinding("msg", gocui.KeyEnter, gocui.ModNone, delMsg); err != nil {
-// 		return err
-// 	}
-
-// 	if err := g.SetKeybinding("main", gocui.KeyCtrlS, gocui.ModNone, saveMain); err != nil {
-// 		return err
-// 	}
-// 	if err := g.SetKeybinding("main", gocui.KeyCtrlW, gocui.ModNone, saveVisualMain); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// func saveMain(g *gocui.Gui, v *gocui.View) error {
-// 	f, err := ioutil.TempFile("", "gocui_demo_")
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer f.Close()
-
-// 	p := make([]byte, 5)
-// 	v.Rewind()
-// 	for {
-// 		n, err := v.Read(p)
-// 		if n > 0 {
-// 			if _, err := f.Write(p[:n]); err != nil {
-// 				return err
-// 			}
-// 		}
-// 		if err == io.EOF {
-// 			break
-// 		}
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
-// }
-
-// func saveVisualMain(g *gocui.Gui, v *gocui.View) error {
-// 	f, err := ioutil.TempFile("", "gocui_demo_")
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer f.Close()
-
-// 	vb := v.ViewBuffer()
-// 	if _, err := io.Copy(f, strings.NewReader(vb)); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// func layout(g *gocui.Gui) error {
-// 	maxX, maxY := g.Size()
-// 	if v, err := g.SetView("side", -1, -1, 30, maxY); err != nil {
-// 		if err != gocui.ErrUnknownView {
-// 			return err
-// 		}
-// 		v.Highlight = true
-// 		v.SelBgColor = gocui.ColorGreen
-// 		v.SelFgColor = gocui.ColorBlack
-// 		fmt.Fprintln(v, "Item 1")
-// 		fmt.Fprintln(v, "Item 2")
-// 		fmt.Fprintln(v, "Item 3")
-// 		fmt.Fprint(v, "\rWill be")
-// 		fmt.Fprint(v, "deleted\rItem 4\nItem 5")
-// 	}
-// 	if v, err := g.SetView("main", 30, -1, maxX, maxY); err != nil {
-// 		if err != gocui.ErrUnknownView {
-// 			return err
-// 		}
-// 		b, err := ioutil.ReadFile("Mark.Twain-Tom.Sawyer.txt")
-// 		if err != nil {
-// 			panic(err)
-// 		}
-// 		fmt.Fprintf(v, "%s", b)
-// 		v.Editable = true
-// 		v.Wrap = true
-// 		if _, err := g.SetCurrentView("main"); err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
+// type dataSimple struct {
+// 	S1 string
+// 	S2 *string
 // }
 
 // func main() {
-// 	g, err := gocui.NewGui(gocui.OutputNormal)
+
+// 	rows := make([]*dataRow, 100000)
+// 	for i := range rows {
+// 		i2 := 2
+// 		e := &dataEntity{
+// 			I1: 1,
+// 			I2: &i2,
+// 		}
+// 		s2 := "2"
+// 		s := dataSimple{
+// 			S1: "1",
+// 			S2: &s2,
+// 		}
+// 		rows[i] = &dataRow{e, s, i, "str"}
+// 	}
+// 	i2 := 2
+// 	entity := &dataEntity{
+// 		I1: 1,
+// 		I2: &i2,
+// 	}
+// 	s2 := "2"
+// 	s := dataSimple{
+// 		S1: "1",
+// 		S2: &s2,
+// 	}
+// 	d := &data{
+// 		Rows:   rows,
+// 		Entity: entity,
+// 		S:      s,
+// 	}
+
+// 	// fmt.Println(d)
+
+// 	filesave, err := os.Create("./data.gob")
+// 	writer := bufio.NewWriter(filesave)
+
 // 	if err != nil {
-// 		log.Panicln(err)
-// 	}
-// 	defer g.Close()
-
-// 	g.Cursor = false
-
-// 	g.SetManagerFunc(layout)
-
-// 	if err := keybindings(g); err != nil {
-// 		log.Panicln(err)
+// 		fmt.Println(err, 0)
+// 		os.Exit(1)
 // 	}
 
-// 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-// 		log.Panicln(err)
+// 	enc := gob.NewEncoder(writer)
+// 	err = enc.Encode(d)
+// 	if err != nil {
+// 		fmt.Println(err, 1)
+// 		os.Exit(1)
 // 	}
+
+// 	err = writer.Flush()
+// 	if err != nil {
+// 		fmt.Println(err, 2)
+// 		os.Exit(1)
+// 	}
+
+// 	filesave.Close()
+
+// 	fileopen, err := os.Open("./data.gob")
+// 	if err != nil {
+// 		fmt.Println(err, 3)
+// 		os.Exit(1)
+// 	}
+
+// 	var decD data
+// 	dec := gob.NewDecoder(fileopen)
+// 	err = dec.Decode(&decD)
+// 	if err != nil {
+// 		fmt.Println(err, 4)
+// 		os.Exit(1)
+// 	}
+
+// 	// fmt.Println(decD)
+// 	// fmt.Printf("%+v\n", decD)
+// 	// fmt.Printf("%+v\n", decD.Rows)
+// 	// for _, row := range decD.Rows {
+// 	// 	fmt.Printf("%+v\n", row)
+// 	// }
+// 	// fmt.Printf("%+v\n", decD.Entity)
+// 	// fmt.Printf("%+v\n", decD.S)
+
+// 	fileopen.Close()
+
 // }

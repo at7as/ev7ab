@@ -391,6 +391,8 @@ func closeEnterSetupItem(g *gocui.Gui, v *gocui.View) error {
 
 	_, err = setCurrentViewOnTop(g, "setup")
 
+	app.lab.Setup([][2]string{{app.setup.l[app.setup.ai].key, value}})
+
 	return err
 }
 
@@ -679,7 +681,7 @@ func onEditInsertStage(g *gocui.Gui, v *gocui.View) error {
 	if app.edit == nil {
 		return nil
 	} else {
-		if !app.edit.n.dirty {
+		if !app.edit.ed {
 			return nil
 		}
 	}
@@ -696,7 +698,7 @@ func onEditDeleteStage(g *gocui.Gui, v *gocui.View) error {
 	if app.edit == nil {
 		return nil
 	} else {
-		if !app.edit.n.dirty {
+		if !app.edit.ed {
 			return nil
 		}
 	}
@@ -714,7 +716,7 @@ func onEditInsertNode(g *gocui.Gui, v *gocui.View) error {
 	if app.edit == nil {
 		return nil
 	} else {
-		if !app.edit.n.dirty {
+		if !app.edit.ed {
 			return nil
 		}
 	}
@@ -737,7 +739,7 @@ func onEditEditNodeSource(g *gocui.Gui, v *gocui.View) error {
 	if app.edit == nil {
 		return nil
 	} else {
-		if !app.edit.n.dirty {
+		if !app.edit.ed {
 			return nil
 		}
 	}
@@ -778,7 +780,7 @@ func onEditEditNode(g *gocui.Gui, v *gocui.View) error {
 	if app.edit == nil {
 		return nil
 	} else {
-		if !app.edit.n.dirty {
+		if !app.edit.ed {
 			return nil
 		}
 	}
@@ -794,7 +796,7 @@ func onEditDeleteNode(g *gocui.Gui, v *gocui.View) error {
 	if app.edit == nil {
 		return nil
 	} else {
-		if !app.edit.n.dirty {
+		if !app.edit.ed {
 			return nil
 		}
 	}
@@ -826,7 +828,7 @@ func openNodeSize(g *gocui.Gui, v *gocui.View) error {
 	if app.edit == nil {
 		return nil
 	} else {
-		if !app.edit.n.dirty {
+		if !app.edit.ed {
 			return nil
 		}
 	}

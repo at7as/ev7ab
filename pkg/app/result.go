@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/at7as/ev7ab/pkg/lab"
 	"github.com/jroimartin/gocui"
 )
 
@@ -157,11 +158,11 @@ func (pl *projectList) next() {
 
 func (pl *projectList) selected() bool {
 
-	for _, v := range app.result.l {
-		if v.ui.selected {
-			return true
-		}
-	}
+	// for _, v := range app.result.l {
+	// 	if v.ui.selected {
+	// 		return true
+	// 	}
+	// }
 
 	return false
 }
@@ -198,6 +199,7 @@ type project struct {
 	d      *projectData
 	m      *projectModel
 	n      *projectModel
+	ed     bool
 }
 
 func newProject(o *project) (*project, error) {
@@ -231,8 +233,8 @@ func newProject(o *project) (*project, error) {
 func (p *project) edit() {
 
 	p.n = cloneModel(p.m)
-	p.n.dirty = true
 	p.n.measure()
+	p.ed = true
 
 }
 
@@ -284,8 +286,7 @@ func (p *project) validate() bool {
 func (p *project) save() {
 
 	if p.status == psNew {
-		p.id = app.state.id
-		app.state.id++
+		p.id = app.lab.AddProject([][]lab.Node{})
 		app.result.add(p)
 	}
 
@@ -302,7 +303,8 @@ func (p *project) save() {
 	}
 
 	p.m = p.n
-	p.m.dirty = false
+
+	p.ed = false
 
 }
 
@@ -346,8 +348,8 @@ type projectData struct {
 }
 
 type projectModel struct {
-	model  []*projectModelStage
-	dirty  bool
+	model []*projectModelStage
+	// dirty  bool
 	size   int
 	volume int
 }
@@ -381,7 +383,7 @@ func newProjectModel(o *project, in, out int) *projectModel {
 		m.model[1] = &projectModelStage{stage: make([]*projectModelNode, 1)}
 		m.model[1].stage[0] = &projectModelNode{source: []projectModelSource{{0, 0}}, size: out}
 	}
-	m.dirty = true
+	// m.dirty = true
 	m.measure()
 
 	return m

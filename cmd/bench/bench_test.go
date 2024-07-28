@@ -19,30 +19,34 @@ var lPool = &sync.Pool{
 		return &b
 	},
 }
-var inPool = &sync.Pool{
-	New: func() any {
-		b := make([]float64, 0, nn*3)
-		return &b
-	},
-}
-var outPool = &sync.Pool{
-	New: func() any {
-		b := make([]float64, 0, nn*3)
-		return &b
-	},
-}
-var in6Pool = &sync.Pool{
-	New: func() any {
-		b := make([]float64, 0, nn*3)
-		return &b
-	},
-}
-var out6Pool = &sync.Pool{
-	New: func() any {
-		b := make([]float64, 0, nn*3)
-		return &b
-	},
-}
+
+//	var inPool = &sync.Pool{
+//		New: func() any {
+//			b := make([]float64, 0, nn*3)
+//			return &b
+//		},
+//	}
+//
+//	var outPool = &sync.Pool{
+//		New: func() any {
+//			b := make([]float64, 0, nn*3)
+//			return &b
+//		},
+//	}
+//
+//	var in6Pool = &sync.Pool{
+//		New: func() any {
+//			b := make([]float64, 0, nn*3)
+//			return &b
+//		},
+//	}
+//
+//	var out6Pool = &sync.Pool{
+//		New: func() any {
+//			b := make([]float64, 0, nn*3)
+//			return &b
+//		},
+//	}
 var dataPool = &sync.Pool{
 	New: func() any {
 		b := make([]float64, 0, nn*3)
@@ -136,19 +140,19 @@ type web02 struct {
 	end    bool
 }
 
-func spawn07(o *model01, rr *rand.Rand, wg *sync.WaitGroup, iii int) {
-	defer wg.Done()
-	bufPtr := lPool.Get().(*[]float64)
-	e := entity01{
-		origin: o,
-		link:   *bufPtr,
-		bufPtr: bufPtr,
-	}
-	for range o.link {
-		e.link = append(e.link, rr.Float64())
-	}
-	p01.pop[iii] = &e
-}
+// func spawn07(o *model01, rr *rand.Rand, wg *sync.WaitGroup, iii int) {
+// 	defer wg.Done()
+// 	bufPtr := lPool.Get().(*[]float64)
+// 	e := entity01{
+// 		origin: o,
+// 		link:   *bufPtr,
+// 		bufPtr: bufPtr,
+// 	}
+// 	for range o.link {
+// 		e.link = append(e.link, rr.Float64())
+// 	}
+// 	p01.pop[iii] = &e
+// }
 
 func spawn08(o *model01, rr *rand.Rand, wg *sync.WaitGroup, iii int) {
 	defer wg.Done()

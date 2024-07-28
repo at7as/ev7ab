@@ -1,157 +1,193 @@
 package lab
 
-import "math/rand"
-
-const levelMax int = 9
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"sync"
+)
 
 // Lab ...
 type Lab struct {
-	cfg  Config
 	prod Producer
-	gen  *generator
+	c    config
 	s    state
-	r    *rand.Rand
 }
 
-// Config ...
-type Config struct {
-	In     int
-	Out    int
-	Target []float64
-	Limit  []float64
-	Goal   bool
-	Size   int
-	Seed   int64
-	Aggr   Aggregator
-	Proc   Processor
+type config struct {
+	target []float64
+	limit  []float64
+	goal   bool
+	size   int
+	aggr   Aggregator
+	proc   Processor
 }
 
 type state struct {
 	run  bool
-	ev   *project
-	next bool
-	goal *entity
-	// pop []*entity
-	// top []*entity
+	exec bool
+	id   int
+	ev   map[int]*project
+	wg   *sync.WaitGroup
+	goal *project
 }
 
 // New ...
-func New(cfg Config, prod Producer) *Lab {
+func New(prod Producer) *Lab {
 
-	var r *rand.Rand
-	if cfg.Seed != 0 {
-		r = rand.New(rand.NewSource(cfg.Seed))
-	} else {
-		r = rand.New(rand.NewSource(rand.Int63()))
+	c := config{
+		target: make([]float64, 0),
+		limit:  make([]float64, 0),
+		goal:   false,
+		size:   1000,
+		aggr:   nil,
+		proc:   nil,
 	}
 
-	if cfg.Aggr == nil {
-		cfg.Aggr = avgAggr
+	s := state{
+		run: false,
+		id:  0,
+		ev:  make(map[int]*project),
+		wg:  &sync.WaitGroup{},
 	}
 
-	if cfg.Proc == nil {
-		cfg.Proc = linearProc
+	return &Lab{prod, c, s}
+}
+
+// Setup ...
+func (l *Lab) Setup(s [][2]string) error {
+
+	for _, v := range s {
+		switch v[0] {
+
+		case "Target":
+			for _, str := range strings.Split(v[1], " ") {
+				value, err := strconv.ParseFloat(str, 64)
+				if err != nil {
+					return err
+				}
+				l.c.target = append(l.c.target, value)
+			}
+
+		case "Limit":
+			for _, str := range strings.Split(v[1], " ") {
+				value, err := strconv.ParseFloat(str, 64)
+				if err != nil {
+					return err
+				}
+				l.c.limit = append(l.c.limit, value)
+			}
+
+		case "Goal":
+			value, err := strconv.ParseBool(v[1])
+			if err != nil {
+				return err
+			}
+			l.c.goal = value
+
+		case "Size":
+			value, err := strconv.Atoi(v[1])
+			if err != nil {
+				return err
+			}
+			l.c.size = value
+			l.resize()
+
+		case "Aggr":
+			if v[1] == "avg" {
+				return nil
+			}
+			value, ok := aggrMap[v[1]]
+			if !ok {
+				return fmt.Errorf("%s not exists in aggr map", v[1])
+			}
+			l.c.aggr = value
+
+		case "Proc":
+			if v[1] == "linear" {
+				return nil
+			}
+			value, ok := procMap[v[1]]
+			if !ok {
+				return fmt.Errorf("%s not exists in proc map", v[1])
+			}
+			l.c.proc = value
+
+		}
 	}
 
-	l := &Lab{cfg: cfg, prod: prod, gen: &generator{}, r: r}
-
-	return l
+	return nil
 }
 
-// Examine ...
-func (l *Lab) Examine() {
+// SetAggregator ...
+func (l *Lab) SetAggregator(code string, aggr Aggregator) error {
 
-	l.gen.prepare(l)
-	// l.s.run = true
-
-	for l.s.run {
-		l.generation()
-		// l.evolution()
-	}
-
-	// l.generate()
-
-	// l.s.run = true
-	// for l.s.run {
-
-	// 	l.production()
-
-	// 	if l.s.run {
-	// 		l.evolution()
-	// 	}
-
-	// }
-
-	// >>>
-	// for _, p := range l.s.ev {
-	// 	for _, s := range p.origin.nest {
-	// 		fmt.Printf("s: %v %v %v\n", s.a, s.p, s.n)
-	// 	}
-	// 	fmt.Printf("p.last(): %v\n", p.last())
-	// }
-	// <<<
+	aggrMap[code] = aggr
+	return l.Setup([][2]string{{"Aggr", code}})
 }
 
-func (l *Lab) generation() {
+// SetProcessor ...
+func (l *Lab) SetProcessor(code string, proc Processor) error {
 
-	l.gen.next()
+	procMap[code] = proc
+	return l.Setup([][2]string{{"Proc", code}})
+}
+
+// AddProject ...
+func (l *Lab) AddProject(layout [][]Node) int {
+
+	l.s.ev[l.s.id] = newProject(l, layout)
+	l.s.id++
+
+	return l.s.id
+}
+
+// SetProject ...
+func (l *Lab) SetProject(id int, layout [][]Node) {
+
+	// l.s.pop[id] = newProject(id, layout) // edit project with  struct
+	// truncate pop
+	// clear stat
 
 }
 
-func (l *Lab) production() {
+// Run ...
+func (l *Lab) Run() {
 
-	// for _, s := range l.s.ev {
-	// 	for _, e := range s.pop {
-	// 		e.result = append(e.result, l.prod.Produce(next(e)))
-	// 	}
-	// 	sort.Slice(s.pop, func(i, j int) bool {
-	// 		return l.prod.Compare(s.pop[i].last(), s.pop[j].last())
-	// 	})
-	// 	s.result = append(s.result, s.pop[0].last())
-	// }
+	l.s.run = true
+	l.examine()
 
-	// sort.Slice(l.s.ev, func(i, j int) bool {
-	// 	return l.prod.Compare(l.s.ev[i].last(), l.s.ev[j].last())
-	// })
-
-	// >>>
-	// l.s.top = l.s.pop
-	// <<<
 }
 
-func next(e *entity) Next {
+// Stop ...
+func (l *Lab) Stop() {
 
-	return func(in []float64) []float64 {
-
-		return e.exec(in).value()
-	}
-}
-
-func (l *Lab) evolution() {
-
-	l.selection()
-	l.origination()
-	l.recombination()
-	l.mutation()
-	// l.generate()
-
-	// >>>
 	l.s.run = false
-	// <<<
+
 }
 
-// Value ...
-func (l *Lab) Value(in []float64) [][]float64 {
+func (l *Lab) examine() {
 
-	out := make([][]float64, 0)
+	l.s.exec = true
 
-	// out := make([][]float64, len(l.s.top))
-	// for i, e := range l.s.top {
-	// 	e.exec(in)
-	// 	out[i] = e.value()
-	// }
+	for _, p := range l.s.ev {
+		if p.active {
+			l.s.wg.Add(1)
+			go p.examine()
+		}
+	}
+	l.s.wg.Wait()
 
-	return out
+	l.s.exec = false
+
+}
+
+func (l *Lab) resize() {
+
+	for _, p := range l.s.ev {
+		p.resize()
+	}
+
 }
 
 // Export ...
@@ -161,10 +197,6 @@ func (l *Lab) Export() {}
 func (l *Lab) Import() {
 	// spawn to top to continue examine or get value
 }
-
-// func (l *Lab) Spawn(gen Genome) *Entity {
-// 	return &Entity{Genome: gen, lab: l}
-// }
 
 func (l *Lab) selection() {
 	// 	l.sel["origin"] = l.mob[:l.cfg.origin]
@@ -218,9 +250,9 @@ func (l *Lab) mutation() {
 	// 	}
 }
 
-// обучение с противником
+// обучение с противником -- challange mode
 // продумать значения параметров: начальные, конечные, шаг, динамический шаг
 // debug
-// top 1 del if result > max result
 // массовое мышление
 // старость ноды
+// best/top -- cut

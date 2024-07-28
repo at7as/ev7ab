@@ -29,3 +29,10 @@ func maxAggr(in []float64) float64 {
 
 	return slices.Max(in)
 }
+
+var aggrMap map[string]Aggregator = map[string]Aggregator{
+	"sum": sumAggr,
+	"avg": avgAggr,
+	"min": minAggr,
+	"max": maxAggr,
+}

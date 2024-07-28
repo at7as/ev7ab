@@ -348,7 +348,7 @@ func (w *EditViewWidget) Layout(g *gocui.Gui) error {
 		}
 
 		fmt.Fprintf(v, " \n")
-		fmt.Fprintf(v, "  %s %s      %s\n", dirtyMark(app.edit.n.dirty), untrimRight(app.edit.status.text(), 12), numberMark(app.edit))
+		fmt.Fprintf(v, "  %s %s      %s\n", dirtyMark(app.edit.ed), untrimRight(app.edit.status.text(), 12), numberMark(app.edit))
 		fmt.Fprintf(v, " \n")
 		nodeStat := ""
 		if len(app.edit.n.model[app.cursor.s].stage) > 0 {

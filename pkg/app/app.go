@@ -6,12 +6,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/at7as/ev7ab/pkg/lab"
+	"github.com/at7as/ev7ab/pkg/lib"
 	"github.com/jroimartin/gocui"
 )
 
 var gui *gocui.Gui
 
 var app application = application{
+	lab: lab.New(&lib.Example1{}),
+	// id:    0,
 	state: &State{},
 	run:   false,
 	view:  0,
@@ -25,7 +29,6 @@ var app application = application{
 		{"Limit", ""},
 		{"Goal", "false"},
 		{"Size", "1000"},
-		{"Seed", "0 0"},
 		{"Aggr", "avg"},
 		{"Proc", "linear"},
 	}),
@@ -41,6 +44,7 @@ var app application = application{
 }
 
 type application struct {
+	lab       *lab.Lab
 	state     *State
 	run       bool
 	view      int
@@ -59,22 +63,34 @@ type application struct {
 
 // State ...
 type State struct {
-	id     int
-	setup  *itemList
-	result *projectList
-	edit   *project
+	Setup  [][2]string
+	Result []string
 }
 
 func (s *State) save() {
+
+	// app.state.ID = app.lab.s.id
+	app.state.Setup = make([][2]string, len(app.setup.l))
+	for i, v := range app.setup.l {
+		app.state.Setup[i][0] = v.key
+		app.state.Setup[i][1] = v.value
+	}
+	// prepare result
+
+	// save to file
 
 }
 
 func (s *State) load() {
 
-}
+	// load to state
 
-type Cursor struct {
-	x, y int
+	// app.id = app.state.ID
+	app.setup = newItemList(app.state.Setup)
+	app.lab.Setup(app.state.Setup)
+
+	// prepare result
+
 }
 
 // Run ...
