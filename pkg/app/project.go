@@ -9,15 +9,15 @@ import (
 type project struct {
 	id     int
 	status projectStatus
-	ui     projectUI
 	o      *project
-	d      *projectData
+	d      *projectStat
 	m      *projectModel
 	n      *projectModel
 	ed     bool
+	sel    bool
 }
 
-func newProject(o *project) (*project, error) {
+func newProject(o *project) *project {
 
 	in, err := strconv.Atoi(app.setup.m["In"].value)
 	if err != nil {
@@ -33,16 +33,22 @@ func newProject(o *project) (*project, error) {
 		id:     0,
 		status: psNew,
 		o:      o,
-		d: &projectData{
-			size: n.size,
-			pop:  0,
-			try:  0,
-			best: 0.0,
+		d: &projectStat{
+			size:   0,
+			volume: 0,
+			gen:    0,
+			ev:     0,
+			age:    0,
+			best:   "",
+			goal:   false,
 		},
-		n: n,
+		m:   nil,
+		n:   n,
+		ed:  false,
+		sel: false,
 	}
 
-	return &p, nil
+	return &p
 }
 
 func (p *project) edit() {
@@ -53,42 +59,42 @@ func (p *project) edit() {
 
 }
 
-func (p *project) validate() bool {
+func (p *project) validate(m *projectModel) bool {
 
-	for i := range p.n.model {
-		for ii := range p.n.model[i].stage {
-			p.n.model[i].stage[ii].valid = i == len(p.n.model)-1
+	for i := range m.model {
+		for ii := range m.model[i].stage {
+			m.model[i].stage[ii].valid = i == len(m.model)-1
 		}
 	}
 
-	for i := range p.n.model {
-		for ii := range p.n.model[i].stage {
-			for _, src := range p.n.model[i].stage[ii].source {
-				p.n.model[src.s].stage[src.n].valid = true
+	for i := range m.model {
+		for ii := range m.model[i].stage {
+			for _, src := range m.model[i].stage[ii].source {
+				m.model[src.s].stage[src.n].valid = true
 			}
 		}
 	}
 
-	for i := range p.n.model {
-		for ii := range p.n.model[i].stage {
-			if !p.n.model[i].stage[ii].valid {
+	for i := range m.model {
+		for ii := range m.model[i].stage {
+			if !m.model[i].stage[ii].valid {
 				continue
 			}
-			p.n.model[i].stage[ii].valid = p.n.model[i].stage[ii].size > 0
-			if !p.n.model[i].stage[ii].valid {
+			m.model[i].stage[ii].valid = m.model[i].stage[ii].size > 0
+			if !m.model[i].stage[ii].valid {
 				continue
 			}
 			if i > 0 {
-				p.n.model[i].stage[ii].valid = len(p.n.model[i].stage[ii].source) > 0
+				m.model[i].stage[ii].valid = len(m.model[i].stage[ii].source) > 0
 			}
 		}
 	}
 
-	for _, m := range p.n.model {
-		if len(m.stage) == 0 {
+	for _, s := range m.model {
+		if len(s.stage) == 0 {
 			return false
 		}
-		for _, n := range m.stage {
+		for _, n := range s.stage {
 			if !n.valid {
 				return false
 			}
@@ -111,7 +117,7 @@ func (p *project) save() {
 		p.status = psActive
 	}
 
-	if !p.validate() {
+	if !p.validate(p.n) {
 		p.status = psInvalid
 		app.invalid = true
 		go hideInvalid()
@@ -155,11 +161,14 @@ func (ps projectStatus) text() string {
 	return ""
 }
 
-type projectData struct {
-	size int
-	pop  int
-	try  int
-	best float64
+type projectStat struct {
+	size   int
+	volume int
+	gen    int
+	ev     int
+	age    int
+	best   string
+	goal   bool
 }
 
 func insertStage() {

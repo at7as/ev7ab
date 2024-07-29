@@ -293,17 +293,12 @@ func toggleHelp(g *gocui.Gui, v *gocui.View) error {
 
 func onSetupSave(g *gocui.Gui, v *gocui.View) error {
 
-	// app.state.result = app.result
-	app.state.save()
-
-	return nil
+	return app.save()
 }
 
 func onSetupLoad(g *gocui.Gui, v *gocui.View) error {
 
-	app.state.load()
-
-	return nil
+	return app.load()
 }
 
 func onSetupKeyArrowUp(g *gocui.Gui, v *gocui.View) error {
@@ -427,11 +422,7 @@ func onResultKeyArrowDown(g *gocui.Gui, v *gocui.View) error {
 
 func onResultNewProject(g *gocui.Gui, v *gocui.View) error {
 
-	p, err := newProject(nil)
-	if err != nil {
-		return err
-	}
-	app.edit = p
+	app.edit = newProject(nil)
 	app.cursor = projectModelSource{0, 0}
 	app.scroll = projectModelSource{0, 0}
 
@@ -454,11 +445,7 @@ func onResultEditProject(g *gocui.Gui, v *gocui.View) error {
 func onResultDubProject(g *gocui.Gui, v *gocui.View) error {
 
 	if app.result.a != nil {
-		p, err := newProject(app.result.a)
-		if err != nil {
-			return err
-		}
-		app.edit = p
+		app.edit = newProject(app.result.a)
 		app.cursor = projectModelSource{0, 0}
 		app.scroll = projectModelSource{0, 0}
 		return showEdit(g, v)
@@ -474,7 +461,7 @@ func onResultSelectProject(g *gocui.Gui, v *gocui.View) error {
 	}
 
 	if !app.run && app.result.a != nil {
-		app.result.a.ui.selected = !app.result.a.ui.selected
+		app.result.a.sel = !app.result.a.sel
 	}
 
 	return nil
@@ -488,7 +475,7 @@ func onResultSelectAllProject(g *gocui.Gui, v *gocui.View) error {
 
 	selected := !app.result.selected()
 	for i := range app.result.l {
-		app.result.l[i].ui.selected = selected
+		app.result.l[i].sel = selected
 	}
 
 	return nil
@@ -502,7 +489,7 @@ func onResultHoldProject(g *gocui.Gui, v *gocui.View) error {
 
 	if app.result.selected() {
 		for i, v := range app.result.l {
-			if v.status == psActive && v.ui.selected {
+			if v.status == psActive && v.sel {
 				app.result.l[i].status = psHolded
 			}
 		}
@@ -529,7 +516,7 @@ func onResultActivateProject(g *gocui.Gui, v *gocui.View) error {
 
 	if app.result.selected() {
 		for i, v := range app.result.l {
-			if v.status == psHolded && v.ui.selected {
+			if v.status == psHolded && v.sel {
 				app.result.l[i].status = psActive
 			}
 		}
@@ -550,13 +537,13 @@ func onResultTerminateProject(g *gocui.Gui, v *gocui.View) error {
 
 	if app.result.selected() {
 		for i, v := range app.result.l {
-			if v.ui.selected {
-				app.result.l[i].ui.selected = false
+			if v.sel {
+				app.result.l[i].sel = false
 				app.result.l[i].status = psTerminated
 			}
 		}
 	} else {
-		app.result.a.ui.selected = false
+		app.result.a.sel = false
 		app.result.a.status = psTerminated
 	}
 
@@ -581,12 +568,7 @@ func onResultShowToggle(g *gocui.Gui, v *gocui.View) error {
 func onEditNewProject(g *gocui.Gui, v *gocui.View) error {
 
 	app.linkEdit = false
-
-	p, err := newProject(nil)
-	if err != nil {
-		return err
-	}
-	app.edit = p
+	app.edit = newProject(nil)
 	app.cursor = projectModelSource{0, 0}
 	app.scroll = projectModelSource{0, 0}
 
@@ -609,11 +591,7 @@ func onEditDubProject(g *gocui.Gui, v *gocui.View) error {
 	app.linkEdit = false
 
 	if app.result.a != nil {
-		p, err := newProject(app.result.a)
-		if err != nil {
-			return err
-		}
-		app.edit = p
+		app.edit = newProject(app.result.a)
 		app.cursor = projectModelSource{0, 0}
 		app.scroll = projectModelSource{0, 0}
 	}
@@ -637,7 +615,7 @@ func onEditValidateProject(g *gocui.Gui, v *gocui.View) error {
 	app.linkEdit = false
 
 	if app.edit != nil {
-		if !app.edit.validate() {
+		if !app.edit.validate(app.edit.n) {
 			app.invalid = true
 			go hideInvalid()
 		}

@@ -26,11 +26,17 @@ func (w *resultViewWidget) Layout(g *gocui.Gui) error {
 
 	// top to result when project is goal
 
+	// 80
+
+	// 80 for
+
 	fmt.Fprintf(v, "  %s  %s│\n", space(5), space(5))
 	fmt.Fprintf(v, "  %s##%s│", space(5), space(5))
 	fmt.Fprintf(v, "%sSIZE%s│", space(4), space(4))
-	fmt.Fprintf(v, "%sPOP%s│", space(4), space(5))
-	fmt.Fprintf(v, "%sTRY%s│", space(4), space(5))
+	fmt.Fprintf(v, "%sVOLUME%s│", space(3), space(3))
+	fmt.Fprintf(v, "%sGEN%s│", space(4), space(5))
+	fmt.Fprintf(v, "%sEV%s│", space(5), space(5))
+	fmt.Fprintf(v, "%sAGE%s│", space(4), space(5))
 	fmt.Fprintf(v, "%sBEST%s│", space(4), space(4))
 	if app.result.holded {
 		fmt.Fprintf(v, "%s\033[33;4mSTATUS\033[0m%s\n", space(3), space(3))
@@ -45,7 +51,7 @@ func (w *resultViewWidget) Layout(g *gocui.Gui) error {
 			fmt.Fprintf(v, "  %s│%s┼%s┼%s┼%s┼%s\n", strings.Repeat("─", 12), strings.Repeat("─", 12), strings.Repeat("─", 12), strings.Repeat("─", 12), strings.Repeat("─", 12), strings.Repeat("─", 12))
 
 			selected := " "
-			if p.ui.selected {
+			if p.sel {
 				selected = "█"
 			}
 			if i == app.result.ai && !app.run {

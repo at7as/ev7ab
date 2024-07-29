@@ -14,8 +14,8 @@ var gui *gocui.Gui
 var app *application
 
 type application struct {
-	lab       *lab.Lab
-	state     *State
+	lab *lab.Lab
+	// state     *State
 	run       bool
 	view      int
 	help      bool
@@ -34,22 +34,22 @@ type application struct {
 func newApplication(prod lab.Producer, labFile string) *application {
 
 	return &application{
-		lab:   lab.New(prod),
-		state: &State{},
-		run:   false,
-		view:  0,
-		help:  false,
+		lab: lab.New(prod),
+		// state: &State{},
+		run:  false,
+		view: 0,
+		help: false,
 		setup: newItemList([][2]string{
 			{"LabFile", labFile},
-			{"InputFile", ""},
 			{"In", "2"},
 			{"Out", "2"},
-			{"Target", ""},
-			{"Limit", ""},
-			{"Goal", "false"},
 			{"Size", "1000"},
 			{"Aggr", "avg"},
 			{"Proc", "linear"},
+			{"Goal", "false"},
+			{"Target", ""},
+			{"Limit", ""},
+			{"InputFile", ""},
 		}),
 		setupItem: false,
 		result:    newProjectList(),
@@ -61,6 +61,35 @@ func newApplication(prod lab.Producer, labFile string) *application {
 		invalid:   false,
 		scroll:    projectModelSource{0, 0},
 	}
+}
+
+func (a *application) save() error {
+
+	s := &State{}
+	// app.state.ID = app.lab.s.id
+	s.Setup = make([][2]string, len(app.setup.l))
+	for i, v := range app.setup.l {
+		s.Setup[i][0] = v.key
+		s.Setup[i][1] = v.value
+	}
+	// prepare result
+
+	// save to file
+
+	return nil
+}
+
+func (a *application) load() error {
+
+	// load to state
+
+	// app.id = app.state.ID
+	// app.setup = newItemList(app.state.Setup)
+	// app.lab.Setup(app.state.Setup)
+
+	// prepare result
+
+	return nil
 }
 
 // Run ...
@@ -133,32 +162,6 @@ func hideInvalid() {
 
 // State ...
 type State struct {
-	Setup  [][2]string
-	Result []string
-}
-
-func (s *State) save() {
-
-	// app.state.ID = app.lab.s.id
-	app.state.Setup = make([][2]string, len(app.setup.l))
-	for i, v := range app.setup.l {
-		app.state.Setup[i][0] = v.key
-		app.state.Setup[i][1] = v.value
-	}
-	// prepare result
-
-	// save to file
-
-}
-
-func (s *State) load() {
-
-	// load to state
-
-	// app.id = app.state.ID
-	app.setup = newItemList(app.state.Setup)
-	app.lab.Setup(app.state.Setup)
-
-	// prepare result
-
+	Setup [][2]string
+	Lab   []string
 }

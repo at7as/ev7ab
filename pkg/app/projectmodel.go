@@ -1,8 +1,7 @@
 package app
 
 type projectModel struct {
-	model []*projectModelStage
-	// dirty  bool
+	model  []*projectModelStage
 	size   int
 	volume int
 }
@@ -36,7 +35,6 @@ func newProjectModel(o *project, in, out int) *projectModel {
 		m.model[1] = &projectModelStage{stage: make([]*projectModelNode, 1)}
 		m.model[1].stage[0] = &projectModelNode{source: []projectModelSource{{0, 0}}, size: out}
 	}
-	// m.dirty = true
 	m.measure()
 
 	return m
