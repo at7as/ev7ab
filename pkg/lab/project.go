@@ -30,6 +30,8 @@ type project struct {
 	ev    []*entity
 	exec  func(*entity, []float64) *entity
 	value func(*entity) []float64
+	age   int
+	goal  *entity
 }
 
 type layout [][]Node
@@ -138,6 +140,7 @@ func (p *project) examine() {
 	for p.lab.s.run {
 		p.generation()
 		p.evolution()
+		p.age++
 	}
 
 	p.lab.s.wg.Done()
@@ -235,6 +238,15 @@ func (p *project) evolution() {
 	}
 
 	p.ev = h.e[:p.size]
+
+	if len(p.ev) > 0 && p.lab.prod.Goal(p.ev[0].last(0)) {
+		p.goal = p.ev[0]
+
+		if p.lab.c.goal {
+			p.lab.s.run = false
+		}
+
+	}
 
 }
 
@@ -352,11 +364,45 @@ func (p *project) reduce(h *house) {
 
 }
 
-func (p *project) set(layout [][]Node) {
+func (p *project) activate() {
 
-	p.layout = layout
-	p.compile()
-	// not ready
+	p.active = true
+
+}
+
+func (p *project) deactivate() {
+
+	p.active = false
+
+}
+
+func (p *project) stat() (int, int, int, []float64, bool) {
+
+	result := []float64{}
+	if p.goal != nil {
+		result = p.goal.last(0)
+	} else if len(p.ev) > 0 {
+		result = p.ev[0].last(0)
+	}
+
+	return len(p.gen), len(p.ev), p.age, result, p.goal != nil
+}
+
+func (p *project) terminate() {
+
+	for _, e := range p.ev {
+		e.atomize()
+	}
+	p.ev = p.ev[:0]
+	for _, e := range p.gen {
+		e.atomize()
+	}
+	p.gen = p.gen[:0]
+	p.wg = nil
+	p.rand = p.rand[:0]
+	p.pool.mod = nil
+	p.pool.out = nil
+	p.deactivate()
 
 }
 
@@ -368,132 +414,4 @@ func clamp(v float64) float64 {
 func triangular(n int) int {
 
 	return n * (n + 1) / 2
-}
-
-type house struct {
-	e []*entity
-}
-
-type entity struct {
-	*project
-	*model
-	mod, out *atom
-	result   [][]float64
-}
-
-func (e *entity) exec() {
-
-	e.result = append(e.result, e.project.lab.prod.Produce(next(e)))
-
-	e.project.wg.Done()
-
-}
-
-func (e *entity) last(shift int) []float64 {
-
-	return e.result[len(e.result)-1-shift]
-}
-
-func (e *entity) atomize() {
-
-	e.mod.v = e.mod.v[:0]
-	e.project.pool.mod.Put(e.mod)
-
-	e.out.v = e.out.v[:0]
-	e.project.pool.out.Put(e.out)
-
-}
-
-func next(e *entity) Next {
-
-	return func(in []float64) []float64 {
-
-		return e.project.exec(e, in).project.value(e)
-	}
-}
-
-func execDefault(e *entity, in []float64) *entity {
-
-	e.out.v = e.out.v[:0]
-	e.out.v = append(e.out.v, in...)
-	mod := 0
-	for _, n := range *e.model {
-		for range n.out {
-			v := 0.0
-			for _, index := range n.src {
-				for _, value := range e.out.v[index[0]:index[1]] {
-					v += qlinear(value, e.mod.v[mod])
-					mod++
-				}
-			}
-			e.out.v = append(e.out.v, v/n.in)
-		}
-	}
-
-	return e
-}
-
-func execCustom(e *entity, in []float64) *entity {
-
-	e.out.v = e.out.v[:0]
-	e.out.v = append(e.out.v, in...)
-	mod := 0
-	for _, n := range *e.model {
-		for range n.out {
-			v := make([]float64, 0, int(n.in))
-			for _, index := range n.src {
-				for _, value := range e.out.v[index[0]:index[1]] {
-					v = append(v, qlinear(value, e.mod.v[mod]))
-					mod++
-				}
-			}
-			e.out.v = append(e.out.v, e.project.lab.c.aggr(v))
-		}
-	}
-
-	return e
-}
-
-func qlinear(v, m float64) float64 {
-
-	return max(1-((v-m)/0.5)*((v-m)/0.5), 0.0)
-}
-
-func valueDefault(e *entity) []float64 {
-
-	out := make([]float64, 0)
-	for _, v := range e.out.v[len(e.out.v)-(*e.model)[len(*e.model)-1].out:] {
-		out = append(out, v)
-	}
-
-	return out
-}
-
-func valueCustom(e *entity) []float64 {
-
-	out := make([]float64, 0)
-	for _, v := range e.out.v[len(e.out.v)-(*e.model)[len(*e.model)-1].out:] {
-		out = append(out, e.project.lab.c.proc(v))
-	}
-
-	return out
-}
-
-type atom struct {
-	v []float64
-}
-
-func newAtom(size int) *atom {
-
-	return &atom{make([]float64, 0, size)}
-}
-
-func (a *atom) clone(pool *sync.Pool) *atom {
-
-	c := pool.Get().(*atom)
-	for _, v := range a.v {
-		c.v = append(c.v, v)
-	}
-
-	return c
 }

@@ -7,41 +7,11 @@ import (
 	"time"
 
 	"github.com/at7as/ev7ab/pkg/lab"
-	"github.com/at7as/ev7ab/pkg/lib"
 	"github.com/jroimartin/gocui"
 )
 
 var gui *gocui.Gui
-
-var app application = application{
-	lab: lab.New(&lib.Example1{}),
-	// id:    0,
-	state: &State{},
-	run:   false,
-	view:  0,
-	help:  false,
-	setup: newItemList([][2]string{
-		{"LabFile", "./ev.lab"},
-		{"InputFile", ""},
-		{"In", "2"},
-		{"Out", "2"},
-		{"Target", ""},
-		{"Limit", ""},
-		{"Goal", "false"},
-		{"Size", "1000"},
-		{"Aggr", "avg"},
-		{"Proc", "linear"},
-	}),
-	setupItem: false,
-	result:    newProjectList(),
-	edit:      nil,
-	nodeSize:  false,
-	cursor:    projectModelSource{0, 0},
-	link:      projectModelSource{0, 0},
-	linkEdit:  false,
-	invalid:   false,
-	scroll:    projectModelSource{0, 0},
-}
+var app *application
 
 type application struct {
 	lab       *lab.Lab
@@ -61,40 +31,42 @@ type application struct {
 	scroll    projectModelSource
 }
 
-// State ...
-type State struct {
-	Setup  [][2]string
-	Result []string
-}
+func newApplication(prod lab.Producer, labFile string) *application {
 
-func (s *State) save() {
-
-	// app.state.ID = app.lab.s.id
-	app.state.Setup = make([][2]string, len(app.setup.l))
-	for i, v := range app.setup.l {
-		app.state.Setup[i][0] = v.key
-		app.state.Setup[i][1] = v.value
+	return &application{
+		lab:   lab.New(prod),
+		state: &State{},
+		run:   false,
+		view:  0,
+		help:  false,
+		setup: newItemList([][2]string{
+			{"LabFile", labFile},
+			{"InputFile", ""},
+			{"In", "2"},
+			{"Out", "2"},
+			{"Target", ""},
+			{"Limit", ""},
+			{"Goal", "false"},
+			{"Size", "1000"},
+			{"Aggr", "avg"},
+			{"Proc", "linear"},
+		}),
+		setupItem: false,
+		result:    newProjectList(),
+		edit:      nil,
+		nodeSize:  false,
+		cursor:    projectModelSource{0, 0},
+		link:      projectModelSource{0, 0},
+		linkEdit:  false,
+		invalid:   false,
+		scroll:    projectModelSource{0, 0},
 	}
-	// prepare result
-
-	// save to file
-
-}
-
-func (s *State) load() {
-
-	// load to state
-
-	// app.id = app.state.ID
-	app.setup = newItemList(app.state.Setup)
-	app.lab.Setup(app.state.Setup)
-
-	// prepare result
-
 }
 
 // Run ...
-func Run() {
+func Run(prod lab.Producer, labFile string) {
+
+	app = newApplication(prod, labFile)
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
@@ -104,11 +76,11 @@ func Run() {
 	defer g.Close()
 
 	g.SetManager(
-		NewKeybarWidget(),
-		NewHelpWindowWidget(),
-		NewSetupViewWidget(),
-		NewResultViewWidget(),
-		NewEditViewWidget(),
+		newKeybarWidget(),
+		newHelpWindowWidget(),
+		newSetupViewWidget(),
+		newResultViewWidget(),
+		newEditViewWidget(),
 	)
 
 	g.InputEsc = true
@@ -156,5 +128,37 @@ func hideInvalid() {
 	gui.Update(func(g *gocui.Gui) error {
 		return nil
 	})
+
+}
+
+// State ...
+type State struct {
+	Setup  [][2]string
+	Result []string
+}
+
+func (s *State) save() {
+
+	// app.state.ID = app.lab.s.id
+	app.state.Setup = make([][2]string, len(app.setup.l))
+	for i, v := range app.setup.l {
+		app.state.Setup[i][0] = v.key
+		app.state.Setup[i][1] = v.value
+	}
+	// prepare result
+
+	// save to file
+
+}
+
+func (s *State) load() {
+
+	// load to state
+
+	// app.id = app.state.ID
+	app.setup = newItemList(app.state.Setup)
+	app.lab.Setup(app.state.Setup)
+
+	// prepare result
 
 }

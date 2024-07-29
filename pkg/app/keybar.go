@@ -6,16 +6,13 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// KeybarWidget ...
-type KeybarWidget struct{}
+type keybarWidget struct{}
 
-// NewKeybarWidget ...
-func NewKeybarWidget() *KeybarWidget {
-	return &KeybarWidget{}
+func newKeybarWidget() *keybarWidget {
+	return &keybarWidget{}
 }
 
-// Layout ...
-func (w *KeybarWidget) Layout(g *gocui.Gui) error {
+func (w *keybarWidget) Layout(g *gocui.Gui) error {
 
 	maxX, maxY := g.Size()
 	v, err := g.SetView("keybar", -1, maxY-2, maxX, maxY)
@@ -38,7 +35,7 @@ func (w *KeybarWidget) Layout(g *gocui.Gui) error {
 	return nil
 }
 
-func (w *KeybarWidget) getColorF(i int) string {
+func (w *keybarWidget) getColorF(i int) string {
 
 	if app.view == i {
 		return "2"
@@ -47,7 +44,7 @@ func (w *KeybarWidget) getColorF(i int) string {
 	return "7"
 }
 
-func (w *KeybarWidget) getColorB(i int) string {
+func (w *keybarWidget) getColorB(i int) string {
 
 	if app.view == i {
 		return "7"

@@ -6,16 +6,13 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// HelpWindowWidget ...
-type HelpWindowWidget struct{}
+type helpWindowWidget struct{}
 
-// NewHelpWindowWidget ...
-func NewHelpWindowWidget() *HelpWindowWidget {
-	return &HelpWindowWidget{}
+func newHelpWindowWidget() *helpWindowWidget {
+	return &helpWindowWidget{}
 }
 
-// Layout ...
-func (w *HelpWindowWidget) Layout(g *gocui.Gui) error {
+func (w *helpWindowWidget) Layout(g *gocui.Gui) error {
 
 	maxX, maxY := g.Size()
 	v, err := g.SetView("help", 6, 3, maxX-7, maxY-5)

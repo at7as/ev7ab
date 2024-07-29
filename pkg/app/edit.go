@@ -9,16 +9,13 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// EditViewWidget ...
-type EditViewWidget struct{}
+type editViewWidget struct{}
 
-// NewEditViewWidget ...
-func NewEditViewWidget() *EditViewWidget {
-	return &EditViewWidget{}
+func newEditViewWidget() *editViewWidget {
+	return &editViewWidget{}
 }
 
-// Layout ...
-func (w *EditViewWidget) Layout(g *gocui.Gui) error {
+func (w *editViewWidget) Layout(g *gocui.Gui) error {
 
 	maxX, maxY := g.Size()
 	v, err := g.SetView("edit", -1, 0, maxX, maxY-2)
@@ -485,19 +482,6 @@ func selectNodeDown() {
 			app.cursor.n++
 		}
 	}
-
-}
-
-func insertStage() {
-
-	selectStageRight()
-	app.edit.n.addStage(app.cursor.s)
-
-}
-
-func deleteStage() {
-
-	app.edit.n.removeStage(app.cursor.s)
 
 }
 
