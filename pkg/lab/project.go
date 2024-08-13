@@ -45,14 +45,14 @@ type node struct {
 	modc int
 }
 
-func newProject(lab *Lab, layout [][]Node) *project {
+func newProject(lab *Lab, id int, layout [][]Node) *project {
 
 	p := &project{
 		lab:    lab,
-		id:     lab.s.id,
+		id:     id,
 		active: false,
 		layout: layout,
-		size:   lab.c.size,
+		size:   lab.c.Size,
 		wg:     &sync.WaitGroup{},
 	}
 	p.compile()
@@ -68,11 +68,11 @@ func newProject(lab *Lab, layout [][]Node) *project {
 	p.resize()
 
 	p.exec = execDefault
-	if p.lab.c.aggr != nil {
+	if p.lab.s.aggr != nil {
 		p.exec = execCustom
 	}
 	p.value = valueDefault
-	if p.lab.c.proc != nil {
+	if p.lab.s.proc != nil {
 		p.value = valueCustom
 	}
 
@@ -124,13 +124,13 @@ func (p *project) compile() {
 
 func (p *project) resize() {
 
-	d := p.lab.c.size - len(p.rand)
+	d := p.lab.c.Size - len(p.rand)
 	if d > 0 {
 		for range d {
 			p.rand = append(p.rand, rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64())))
 		}
 	} else if d < 0 {
-		p.rand = p.rand[:p.lab.c.size]
+		p.rand = p.rand[:p.lab.c.Size]
 	}
 
 }
@@ -239,14 +239,7 @@ func (p *project) evolution() {
 
 	p.ev = h.e[:p.size]
 
-	if len(p.ev) > 0 && p.lab.prod.Goal(p.ev[0].last(0)) {
-		p.goal = p.ev[0]
-
-		if p.lab.c.goal {
-			p.lab.s.run = false
-		}
-
-	}
+	p.achieve()
 
 }
 
@@ -333,8 +326,21 @@ func (p *project) mediate(e []*entity, h *house, index int) {
 func (p *project) production(h *house) {
 
 	p.wg.Add(len(h.e))
-	for _, e := range h.e {
-		go e.exec()
+	if p.lab.c.Duel {
+		if len(h.e) > 1 {
+			for i, e := range h.e {
+				last := len(h.e) - 1
+				if i != last {
+					go e.exec(h.e[i+1])
+				} else {
+					go e.exec(h.e[0])
+				}
+			}
+		}
+	} else {
+		for _, e := range h.e {
+			go e.exec(nil)
+		}
 	}
 	p.wg.Wait()
 
@@ -376,6 +382,20 @@ func (p *project) deactivate() {
 
 }
 
+func (p *project) achieve() {
+
+	if len(p.ev) > 0 && p.lab.prod.Goal(p.ev[0].last(0)) {
+
+		p.goal = p.ev[0]
+
+		if p.lab.c.Goal {
+			p.lab.s.run = false
+		}
+
+	}
+
+}
+
 func (p *project) stat() (int, int, int, []float64, bool) {
 
 	result := []float64{}
@@ -386,24 +406,6 @@ func (p *project) stat() (int, int, int, []float64, bool) {
 	}
 
 	return len(p.gen), len(p.ev), p.age, result, p.goal != nil
-}
-
-func (p *project) terminate() {
-
-	for _, e := range p.ev {
-		e.atomize()
-	}
-	p.ev = p.ev[:0]
-	for _, e := range p.gen {
-		e.atomize()
-	}
-	p.gen = p.gen[:0]
-	p.wg = nil
-	p.rand = p.rand[:0]
-	p.pool.mod = nil
-	p.pool.out = nil
-	p.deactivate()
-
 }
 
 func clamp(v float64) float64 {

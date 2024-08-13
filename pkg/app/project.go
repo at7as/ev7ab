@@ -10,7 +10,7 @@ type project struct {
 	id     int
 	status projectStatus
 	o      *project
-	d      *projectStat
+	s      *projectStat
 	m      *projectModel
 	n      *projectModel
 	ed     bool
@@ -19,21 +19,33 @@ type project struct {
 
 func newProject(o *project) *project {
 
-	in, err := strconv.Atoi(app.setup.m["In"].value)
-	if err != nil {
-		in = 0
+	// app.s.setup.list[]
+	in := 0
+	out := 0
+	for _, obj := range app.s.setup.list {
+		if obj.key == "In" {
+			in, _ = strconv.Atoi(obj.value)
+		}
+		if obj.key == "Out" {
+			out, _ = strconv.Atoi(obj.value)
+		}
 	}
-	out, err := strconv.Atoi(app.setup.m["Out"].value)
-	if err != nil {
-		out = 0
-	}
+
+	// in, err = strconv.Atoi(app.setup.m["In"].value)
+	// if err != nil {
+	// 	in = 0
+	// }
+	// out, err = strconv.Atoi(app.setup.m["Out"].value)
+	// if err != nil {
+	// 	out = 0
+	// }
 
 	n := newProjectModel(o, in, out)
 	p := project{
 		id:     0,
 		status: psNew,
 		o:      o,
-		d: &projectStat{
+		s: &projectStat{
 			size:   0,
 			volume: 0,
 			gen:    0,
@@ -44,7 +56,7 @@ func newProject(o *project) *project {
 		},
 		m:   nil,
 		n:   n,
-		ed:  false,
+		ed:  true,
 		sel: false,
 	}
 

@@ -13,9 +13,9 @@ type house struct {
 	e []*entity
 }
 
-func (e *entity) exec() {
+func (e *entity) exec(op *entity) {
 
-	e.result = append(e.result, e.project.lab.prod.Produce(next(e)))
+	e.result = append(e.result, e.project.lab.prod.Produce(next(e), next(op)))
 
 	e.project.wg.Done()
 
@@ -40,9 +40,6 @@ func (e *entity) atomize() {
 	e.project.pool.out.Put(e.out)
 
 }
-
-// Next ...
-type Next func([]float64) []float64
 
 func next(e *entity) Next {
 
@@ -87,7 +84,7 @@ func execCustom(e *entity, in []float64) *entity {
 					mod++
 				}
 			}
-			e.out.v = append(e.out.v, e.project.lab.c.aggr(v))
+			e.out.v = append(e.out.v, e.project.lab.s.aggr(v))
 		}
 	}
 
@@ -113,7 +110,7 @@ func valueCustom(e *entity) []float64 {
 
 	out := make([]float64, 0)
 	for _, v := range e.out.v[len(e.out.v)-(*e.model)[len(*e.model)-1].out:] {
-		out = append(out, e.project.lab.c.proc(v))
+		out = append(out, e.project.lab.s.proc(v))
 	}
 
 	return out

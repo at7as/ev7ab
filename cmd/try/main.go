@@ -1,15 +1,10 @@
 package main
 
-import (
-	"github.com/at7as/ev7ab/pkg/lab"
-	"github.com/at7as/ev7ab/pkg/lib"
-)
-
 func main() {
 
-	l := lab.New(&lib.Example1{})
-	l.AddProject([][]lab.Node{})
-	l.Run()
+	// l := lab.New(&lib.Example1{})
+	// l.AddProject([][]lab.Node{})
+	// l.Run()
 
 }
 

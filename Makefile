@@ -2,7 +2,7 @@ run:
 	@go run ./cmd/app
 
 run-test:
-	@go run ./cmd/app ./test/ev.lab
+	@go run ./cmd/app ./test/app.config.json
 
 build-app:
 	@go build -o ./build/ ./cmd/app
