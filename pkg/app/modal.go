@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/jroimartin/gocui"
 )
@@ -49,7 +50,7 @@ func (c *helpBox) keybinding() error {
 
 func (c *helpBox) close(_ *gocui.Gui, _ *gocui.View) error {
 
-	if err = app.setTabCurrent(app.s.keybar.getTab()); err != nil {
+	if err = app.setTabCurrent(app.v.keybar.tab); err != nil {
 		return err
 	}
 
@@ -86,7 +87,7 @@ func (c *setupItemBox) render() ([]string, error) {
 	buf := []string{}
 
 	buf = append(buf,
-		fmt.Sprintf("%v", c.value),
+		fmt.Sprint(c.value),
 	)
 
 	x, _ := c.widget.view.Size()
@@ -120,30 +121,86 @@ func (c *setupItemBox) close(_ *gocui.Gui, _ *gocui.View) error {
 	return app.closeModal()
 }
 
+// update app lab config
 func (c *setupItemBox) enter(_ *gocui.Gui, _ *gocui.View) error {
 
 	value, _ := c.widget.view.Line(0)
 
-	app.s.setup.setList(c.key, value)
-
-	// update app lab config
+	app.v.setup.setListValue(c.key, value)
 
 	return c.close(nil, nil)
 }
 
-type nodeSizeBox struct{}
+type nodeSizeBox struct {
+	*widget
+}
+
+func newNodeSizeBox() *widget {
+
+	box := &nodeSizeBox{}
+	box.widget = newWidget(box, "nodesize")
+
+	return box.widget
+}
 
 func (c *nodeSizeBox) transform(x int, y int) (int, int, int, int) {
 
-	return 0, 0, x, y
+	return x/2 - 30, y/2 - 2, x/2 + 30, y / 2
 }
 
 func (c *nodeSizeBox) render() ([]string, error) {
 
-	return []string{}, nil
+	gui.Cursor = true
+
+	c.widget.view.Editable = true
+	c.widget.view.Frame = true
+	c.widget.view.Title = " Size "
+
+	buf := []string{}
+
+	value := fmt.Sprint(app.v.edit.getNodeSize())
+	buf = append(buf,
+		fmt.Sprint(value),
+	)
+
+	x, _ := c.widget.view.Size()
+
+	if err = c.widget.view.SetCursor(min(len(value), x-1), 0); err != nil {
+		return buf, err
+	}
+
+	return buf, nil
 }
 
 func (c *nodeSizeBox) keybinding() error {
 
+	if err = gui.SetKeybinding(c.widget.name, gocui.KeyEsc, gocui.ModNone, c.close); err != nil {
+		return err
+	}
+
+	if err = gui.SetKeybinding(c.widget.name, gocui.KeyEnter, gocui.ModNone, c.enter); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (c *nodeSizeBox) close(_ *gocui.Gui, _ *gocui.View) error {
+
+	if err = app.setCurrent("edit"); err != nil {
+		return err
+	}
+
+	return app.closeModal()
+}
+
+func (c *nodeSizeBox) enter(_ *gocui.Gui, _ *gocui.View) error {
+
+	str, _ := c.widget.view.Line(0)
+	value, _ := strconv.Atoi(str)
+
+	app.v.edit.setNodeSize(value)
+	app.v.edit.draft.n.measure()
+
+	return c.close(nil, nil)
 }

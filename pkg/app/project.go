@@ -7,22 +7,32 @@ import (
 )
 
 type project struct {
-	id     int
-	status projectStatus
-	o      *project
-	s      *projectStat
-	m      *projectModel
-	n      *projectModel
-	ed     bool
-	sel    bool
+	id       int
+	status   projectStatus
+	o        *project
+	s        *projectStat
+	m        *projectModel
+	n        *projectModel
+	ed       bool
+	selected bool
 }
+
+type projectStatus int
+
+const (
+	psNew projectStatus = iota
+	psActive
+	psHolded
+	psInvalid
+	psTerminated
+)
 
 func newProject(o *project) *project {
 
 	// app.s.setup.list[]
 	in := 0
 	out := 0
-	for _, obj := range app.s.setup.list {
+	for _, obj := range app.v.setup.list {
 		if obj.key == "In" {
 			in, _ = strconv.Atoi(obj.value)
 		}
@@ -54,10 +64,10 @@ func newProject(o *project) *project {
 			best:   "",
 			goal:   false,
 		},
-		m:   nil,
-		n:   n,
-		ed:  true,
-		sel: false,
+		m:        nil,
+		n:        n,
+		ed:       true,
+		selected: false,
 	}
 
 	return &p
@@ -71,7 +81,9 @@ func (p *project) edit() {
 
 }
 
-func (p *project) validate(m *projectModel) bool {
+func (p *project) validate() bool {
+
+	m := p.n
 
 	for i := range m.model {
 		for ii := range m.model[i].stage {
@@ -119,20 +131,20 @@ func (p *project) validate(m *projectModel) bool {
 func (p *project) save() {
 
 	if p.status == psNew {
-		p.id = app.lab.AddProject([][]lab.Node{})
-		app.result.add(p)
+		p.id = app.s.lab.AddProject([][]lab.Node{})
+		// app.result.add(p)
 	}
 
-	if app.run {
+	if app.s.status == appRun {
 		p.status = psHolded
 	} else {
 		p.status = psActive
 	}
 
-	if !p.validate(p.n) {
+	if !p.validate() {
 		p.status = psInvalid
-		app.invalid = true
-		go hideInvalid()
+		app.v.edit.setInvalid(true)
+		go app.v.edit.hideInvalid()
 	}
 
 	p.m = p.n
@@ -140,20 +152,6 @@ func (p *project) save() {
 	p.ed = false
 
 }
-
-type projectUI struct {
-	selected bool
-}
-
-type projectStatus int
-
-const (
-	psNew projectStatus = iota
-	psActive
-	psHolded
-	psInvalid
-	psTerminated
-)
 
 func (ps projectStatus) text() string {
 
@@ -173,6 +171,10 @@ func (ps projectStatus) text() string {
 	return ""
 }
 
+type projectUI struct {
+	selected bool
+}
+
 type projectStat struct {
 	size   int
 	volume int
@@ -185,13 +187,13 @@ type projectStat struct {
 
 func insertStage() {
 
-	selectStageRight()
-	app.edit.n.addStage(app.cursor.s)
+	app.v.edit.selectStageRight()
+	app.v.edit.draft.n.addStage(app.v.edit.cursor.x)
 
 }
 
 func deleteStage() {
 
-	app.edit.n.removeStage(app.cursor.s)
+	app.v.edit.draft.n.removeStage(app.v.edit.cursor.x)
 
 }

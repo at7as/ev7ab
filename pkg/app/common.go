@@ -13,7 +13,7 @@ type kv struct {
 	key, value string
 }
 
-func space(v string, left, right int) string {
+func space(v any, left, right int) string {
 
 	if left < 0 {
 		left = 0
@@ -22,24 +22,15 @@ func space(v string, left, right int) string {
 		right = 0
 	}
 
-	return fmt.Sprintf("%s%s%s", strings.Repeat(" ", left), v, strings.Repeat(" ", right))
+	return fmt.Sprintf("%s%v%s", strings.Repeat(" ", left), v, strings.Repeat(" ", right))
 }
 
-func untrimRight(v string, n int) string {
+func lead(v any, width, right int) string {
 
-	return " " + v + strings.Repeat(" ", n-len(v)-1)
+	return space(v, width-len(fmt.Sprint(v))-right, right)
 }
 
-func untrimLeft(v string, n int) string {
+func trail(v any, width, left int) string {
 
-	return strings.Repeat(" ", n-len(v)-1) + v + " "
-}
-
-func toEven(v int) int {
-
-	if v%2 == 0 {
-		return v
-	}
-	return v + 1
-
+	return space(v, left, width-len(fmt.Sprint(v))-left)
 }

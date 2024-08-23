@@ -7,16 +7,47 @@ import (
 )
 
 type widget struct {
-	ctrl  controller
-	name  string
-	view  *gocui.View
-	dirty bool
-	buf   []string
+	ctrl           controller
+	name           string
+	view           *gocui.View
+	dirty          bool
+	buf            []string
+	x, y           int
+	cursor, offset position
+}
+
+func (w *widget) setCursor(v position) {
+
+	if v.x != w.cursor.x || v.y != w.cursor.y {
+		w.cursor.x = v.x
+		w.cursor.y = v.y
+		w.mark()
+	}
+
+}
+
+func (w *widget) setOffset(v position) {
+
+	if v.x != w.offset.x || v.y != w.offset.y {
+		w.offset.x = v.x
+		w.offset.y = v.y
+		w.mark()
+	}
+
 }
 
 func newWidget(ctrl controller, name string) *widget {
 
-	return &widget{ctrl: ctrl, name: name, dirty: true, buf: []string{}}
+	return &widget{
+		ctrl:   ctrl,
+		name:   name,
+		dirty:  true,
+		buf:    []string{},
+		x:      0,
+		y:      0,
+		cursor: position{0, 0},
+		offset: position{0, 0},
+	}
 }
 
 func (w *widget) Layout(g *gocui.Gui) error {
@@ -45,8 +76,14 @@ func (w *widget) Layout(g *gocui.Gui) error {
 
 func (w *widget) draw() error {
 
-	x0, y0, x1, y1 := w.ctrl.transform(gui.Size())
+	x, y := gui.Size()
+	if x != w.x || y != w.y {
+		w.x = x
+		w.y = y
+		w.mark()
+	}
 
+	x0, y0, x1, y1 := w.ctrl.transform(x, y)
 	if w.view, err = gui.SetView(w.name, x0, y0, x1, y1); err != nil && err != gocui.ErrUnknownView {
 		return err
 	}
@@ -59,7 +96,7 @@ func (w *widget) keybinding() error {
 	return w.ctrl.keybinding()
 }
 
-func (w *widget) dig() {
+func (w *widget) mark() {
 
 	w.dirty = true
 
@@ -77,6 +114,13 @@ func (w *widget) clean() error {
 	gui.Cursor = false
 
 	return nil
+}
+
+func (w *widget) reset() {
+
+	w.setCursor(position{0, 0})
+	w.setOffset(position{0, 0})
+
 }
 
 type controller interface {

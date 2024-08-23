@@ -6,58 +6,46 @@ import (
 
 type statusbarWidget struct {
 	*widget
-	color int
+	color string
 	text  string
 }
 
-func (w *statusbarWidget) setColor(v int) {
+func (w *statusbarWidget) setColor(s applicationStatus) {
 
-	if v != w.color {
-		w.color = v
-		w.dig()
+	color := ""
+	switch s {
+	case appIdle:
+		color = "7;7"
+	case appRun:
+		color = "5;7"
+	case appWait:
+		color = "3;7"
+	}
+	if color != w.color {
+		w.color = color
+		w.mark()
 	}
 
-}
-
-func (w *statusbarWidget) getColor() string {
-
-	switch w.color {
-	case 0:
-		return "7;7"
-	case 1:
-		return "5;7"
-	case 2:
-		return "3;7"
-	}
-
-	return "7;7"
 }
 
 func (w *statusbarWidget) setText(v string) {
 
 	if v != w.text {
 		w.text = v
-		w.dig()
+		w.mark()
 	}
 
 }
 
-func (w *statusbarWidget) getText() string {
-
-	return w.text
-}
-
 func newStatusbarWidget() *statusbarWidget {
 
-	w := &statusbarWidget{}
+	w := &statusbarWidget{
+		text: "",
+	}
 	w.widget = newWidget(w, "statusbar")
+	w.setColor(appIdle)
 
 	return w
-}
-
-func (w *statusbarWidget) keybinding() error {
-
-	return nil
 }
 
 func (w *statusbarWidget) transform(x int, y int) (int, int, int, int) {
@@ -69,13 +57,18 @@ func (w *statusbarWidget) render() ([]string, error) {
 
 	w.widget.view.Frame = false
 
-	buf := []string{}
-
 	x, _ := gui.Size()
 
+	buf := []string{}
+
 	buf = append(buf,
-		fmt.Sprintf("\033[3%sm%s\033[0m", w.getColor(), space(w.getText(), 1, x-1-len(w.getText()))),
+		fmt.Sprintf("\033[3%sm%s\033[0m", w.color, space(w.text, 1, x-1-len(w.text))),
 	)
 
 	return buf, nil
+}
+
+func (w *statusbarWidget) keybinding() error {
+
+	return nil
 }

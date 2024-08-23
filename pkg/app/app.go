@@ -1,10 +1,7 @@
 package app
 
 import (
-	"fmt"
 	"log"
-	"strings"
-	"time"
 
 	"github.com/at7as/ev7ab/pkg/lab"
 	"github.com/jroimartin/gocui"
@@ -15,96 +12,59 @@ var app *application
 var err error
 
 type application struct {
-	c      config
-	s      state
-	status applicationStatus
-
-	cfgFile string
-	lab     *lab.Lab
-	view    int
-	run     bool
-	exec    bool
-	help    bool
-	// setup     *itemList
-	// setupItem bool
-	result   *projectList
-	edit     *project
-	nodeSize bool
-	cursor   projectModelSource
-	scroll   projectModelSource
-	link     projectModelSource
-	linkEdit bool
-	invalid  bool
-	position int
-	offset   int
+	c config
+	s state
+	v view
 }
 
-type config struct{}
+type config struct {
+	file string
+}
 
 type state struct {
+	status applicationStatus
+	lab    *lab.Lab
+	list   []*project
+}
+
+type view struct {
 	modal     *widget
 	keybar    *keybarWidget
 	statusbar *statusbarWidget
 	setup     *setupWidget
-	widgets   map[string]*widget
-	managers  []gocui.Manager
+	result    *resultWidget
+	edit      *editWidget
 }
+
+type applicationStatus int
+
+const (
+	appIdle applicationStatus = iota
+	appRun
+	appWait
+)
 
 func newApplication(prod lab.Producer, cfgFile string) *application {
 
-	c := config{}
+	c := config{
+		file: cfgFile,
+	}
 
 	s := state{
+		status: appIdle,
+		lab:    lab.New(prod),
+		list:   make([]*project, 0),
+	}
+
+	v := view{
 		keybar:    newKeybarWidget(),
 		statusbar: newStatusbarWidget(),
 		setup:     newSetupWidget(),
-		widgets:   make(map[string]*widget),
-		managers:  make([]gocui.Manager, 0),
+		result:    newResultWidget(),
+		edit:      newEditWidget(),
 	}
 
-	s.widgets[s.keybar.name] = s.keybar.widget
-	s.widgets[s.statusbar.name] = s.statusbar.widget
-	s.widgets[s.setup.name] = s.setup.widget
-
-	for _, w := range s.widgets {
-		s.managers = append(s.managers, w)
-	}
-
-	return &application{
-		c:      c,
-		s:      s,
-		status: appIdle,
-
-		cfgFile: cfgFile,
-		lab:     lab.New(prod),
-		run:     false,
-		exec:    false,
-		view:    0,
-		help:    false,
-		// setup: newItemList([][2]string{
-		// 	{"LabFile", cfgFile},
-		// 	{"In", "2"},
-		// 	{"Out", "2"},
-		// 	{"Size", "1000"},
-		// 	{"Aggr", "avg"},
-		// 	{"Proc", "linear"},
-		// 	{"Goal", "false"},
-		// 	{"Target", ""},
-		// 	{"Limit", ""},
-		// 	{"InputFile", ""},
-		// }),
-		// setupItem: false,
-		result:   newProjectList(),
-		edit:     nil,
-		nodeSize: false,
-		cursor:   projectModelSource{0, 0},
-		scroll:   projectModelSource{0, 0},
-		link:     projectModelSource{0, 0},
-		linkEdit: false,
-		invalid:  false,
-		position: 0,
-		offset:   0,
-	}
+	return &application{c, s, v}
 }
 
 func (a *application) keybinding() error {
@@ -129,6 +89,26 @@ func (a *application) keybinding() error {
 		return err
 	}
 
+	if err = app.v.keybar.keybinding(); err != nil {
+		return err
+	}
+
+	if err = app.v.statusbar.keybinding(); err != nil {
+		return err
+	}
+
+	if err = app.v.setup.keybinding(); err != nil {
+		return err
+	}
+
+	if err = app.v.result.keybinding(); err != nil {
+		return err
+	}
+
+	if err = app.v.edit.keybinding(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -139,9 +119,7 @@ func (a *application) quit(_ *gocui.Gui, _ *gocui.View) error {
 
 func (a *application) toggleHelp(_ *gocui.Gui, _ *gocui.View) error {
 
-	if app.s.modal == nil {
-
-		print("== nil")
+	if app.v.modal == nil {
 
 		if err = app.openModal(newHelpBox()); err != nil {
 			return err
@@ -149,11 +127,9 @@ func (a *application) toggleHelp(_ *gocui.Gui, _ *gocui.View) error {
 
 	} else {
 
-		print("!= nil")
+		open := app.v.modal.name != "help"
 
-		open := app.s.modal.name != "help"
-
-		if err = app.setTabCurrent(app.s.keybar.getTab()); err != nil {
+		if err = app.setTabCurrent(app.v.keybar.tab); err != nil {
 			return err
 		}
 
@@ -177,33 +153,34 @@ func (a *application) showSetup(_ *gocui.Gui, _ *gocui.View) error {
 	if err = app.closeModal(); err != nil {
 		return err
 	}
-	app.s.keybar.setTab(tabSetup)
+	app.v.keybar.setTab(tabSetup)
 
 	return app.setTabCurrent(tabSetup)
 }
 
 func (a *application) showResult(_ *gocui.Gui, _ *gocui.View) error {
 
-	// clearWindow(g, false)
+	if err = app.closeModal(); err != nil {
+		return err
+	}
+	app.v.keybar.setTab(tabResult)
 
-	app.s.keybar.setTab(tabResult)
-	// app.s.statusbar.setText(gui.CurrentView().Name())
-
-	// _, err := setCurrentViewOnTop(g, "result")
-
-	return nil
+	return app.setTabCurrent(tabResult)
 }
 
 func (a *application) showEdit(_ *gocui.Gui, _ *gocui.View) error {
 
-	// clearWindow(g, false)
+	if err = app.closeModal(); err != nil {
+		return err
+	}
+	app.v.keybar.setTab(tabEdit)
 
-	app.s.keybar.setTab(tabEdit)
-	// app.s.statusbar.setText(gui.CurrentView().Name())
+	return app.setTabCurrent(tabEdit)
+}
 
-	// _, err := setCurrentViewOnTop(g, "edit")
+func (a *application) idle() bool {
 
-	return nil
+	return a.s.status == appIdle
 }
 
 func (a *application) setCurrent(name string) error {
@@ -232,16 +209,16 @@ func (a *application) setTabCurrent(tab keybarTab) error {
 
 func (a *application) openModal(w *widget) error {
 
-	if app.s.modal != nil {
-		app.s.modal.clean()
+	if app.v.modal != nil {
+		app.v.modal.clean()
 	}
-	app.s.modal = w
+	app.v.modal = w
 
-	if err = app.s.modal.Layout(gui); err != nil {
+	if err = app.v.modal.Layout(gui); err != nil {
 		return err
 	}
 
-	if err = app.s.modal.keybinding(); err != nil {
+	if err = app.v.modal.keybinding(); err != nil {
 		return err
 	}
 
@@ -256,11 +233,11 @@ func (a *application) closeModal() error {
 
 	gui.Cursor = false
 
-	if app.s.modal != nil {
-		if err = app.s.modal.clean(); err != nil {
+	if app.v.modal != nil {
+		if err = app.v.modal.clean(); err != nil {
 			return err
 		}
-		app.s.modal = nil
+		app.v.modal = nil
 	}
 
 	return nil
@@ -295,13 +272,13 @@ func (a *application) load() error {
 	return nil
 }
 
-type applicationStatus int
+func (a *application) apply(s applicationStatus, t string) {
 
-const (
-	appIdle applicationStatus = iota
-	appRun
-	appWait
-)
+	a.s.status = s
+	a.v.statusbar.setColor(s)
+	a.v.statusbar.setText(t)
+
+}
 
 // Run ...
 func Run(prod lab.Producer, appConfigFile string) {
@@ -313,25 +290,15 @@ func Run(prod lab.Producer, appConfigFile string) {
 
 	app = newApplication(prod, appConfigFile)
 
-	// widgets := []*widget{
-
-	// 	newWidget(app.s.keybar, "keybar"),
-	// 	// newHelpWindowWidget(),
-	// 	// newEditViewWidget(),
-	// 	// newResultViewWidget(),
-	// 	// newSetupViewWidget(),
-	// 	// newWidget(g, newSetupWidget(), "setup"),
-	// 	// statusbar
-	// }
-
-	gui.SetManager(app.s.managers...)
+	gui.SetManager(
+		app.v.keybar.widget,
+		app.v.statusbar.widget,
+		app.v.setup.widget,
+		app.v.result.widget,
+		app.v.edit.widget,
+	)
 
 	app.keybinding()
-	for _, w := range app.s.widgets {
-		if err = w.keybinding(); err != nil {
-			log.Panicln(err)
-		}
-	}
 
 	gui.InputEsc = true
 
@@ -342,44 +309,3 @@ func Run(prod lab.Producer, appConfigFile string) {
 	}
 
 }
-
-func showRun(g *gocui.Gui) error {
-
-	if err = g.DeleteView("run"); err != nil && err != gocui.ErrUnknownView {
-		return err
-	}
-
-	maxX, maxY := g.Size()
-	v, err := g.SetView("run", -1, maxY-3, maxX, maxY-1)
-	if err != nil && err != gocui.ErrUnknownView {
-		return err
-	}
-	v.Frame = false
-
-	fmt.Fprintf(v, "\033[35;4m%s\033[0m", strings.Repeat("█", maxX))
-
-	_, err = g.SetViewOnTop("run")
-
-	return err
-}
-
-func hideRun(g *gocui.Gui) error {
-
-	return g.DeleteView("run")
-}
-
-func hideInvalid() {
-
-	time.Sleep(1 * time.Second)
-	app.invalid = false
-	gui.Update(func(g *gocui.Gui) error {
-		return nil
-	})
-
-}
-
-// State ...
-// type State struct {
-// 	Setup [][2]string
-// 	Lab   []string
-// }

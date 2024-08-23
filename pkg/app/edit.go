@@ -3,497 +3,702 @@ package app
 import (
 	"fmt"
 	"math"
-	"strconv"
-	"strings"
+	"time"
 
 	"github.com/jroimartin/gocui"
 )
 
-type editViewWidget struct{}
-
-func newEditViewWidget() *editViewWidget {
-	return &editViewWidget{}
+type editWidget struct {
+	*widget
+	draft        *project
+	mode         editMode
+	invalid      bool
+	link, scroll position
 }
 
-func (w *editViewWidget) Layout(g *gocui.Gui) error {
+type editMode int
 
-	maxX, maxY := g.Size()
-	v, err := g.SetView("edit", -1, 0, maxX, maxY-2)
-	if err != nil && err != gocui.ErrUnknownView {
+const (
+	editNode editMode = iota
+	editLink
+)
+
+func (w *editWidget) setDraft(p *project) {
+
+	if p != w.draft {
+		w.draft = p
+		w.mark()
+	}
+
+}
+
+func (w *editWidget) setMode(m editMode) {
+
+	if m != w.mode {
+		w.mode = m
+		w.mark()
+	}
+
+}
+
+func (w *editWidget) setInvalid(i bool) {
+
+	if i != w.invalid {
+		w.invalid = i
+		w.mark()
+	}
+
+}
+
+func (w *editWidget) setLink(v position) {
+
+	if v.x != w.link.x || v.y != w.link.y {
+		w.link.x = v.x
+		w.link.y = v.y
+		w.mark()
+	}
+
+}
+
+func (w *editWidget) setScroll(v position) {
+
+	if v.x != w.scroll.x || v.y != w.scroll.y {
+		w.scroll.x = v.x
+		w.scroll.y = v.y
+		w.mark()
+	}
+
+}
+
+func (w *editWidget) getX() int {
+
+	if w.links() {
+		return w.scroll.x
+	}
+	return w.offset.x
+}
+
+func (w *editWidget) getY() int {
+
+	if w.links() {
+		return w.scroll.y
+	}
+	return w.offset.y
+}
+
+func (w *editWidget) links() bool {
+
+	return w.mode == editLink
+}
+
+func (w *editWidget) setNodeSize(v int) {
+
+	if v != w.draft.n.model[w.cursor.x].stage[w.cursor.y].size {
+		w.draft.n.model[w.cursor.x].stage[w.cursor.y].size = v
+		w.mark()
+		w.draft.n.measure()
+	}
+
+}
+
+func (w *editWidget) getNodeSize() int {
+
+	return w.draft.n.model[w.cursor.x].stage[w.cursor.y].size
+}
+
+func newEditWidget() *editWidget {
+
+	w := &editWidget{
+		draft:   nil,
+		mode:    editNode,
+		invalid: false,
+		link:    position{0, 0},
+		scroll:  position{0, 0},
+	}
+	w.widget = newWidget(w, "edit")
+
+	return w
+}
+
+func (w *editWidget) transform(x int, y int) (int, int, int, int) {
+
+	return -1, 0, x, y - 1
+}
+
+func (w *editWidget) render() ([]string, error) {
+
+	w.widget.view.Frame = false
+
+	x, y := gui.Size()
+
+	buf := make([]string, 5)
+
+	if w.draft != nil {
+
+		buf[0] = " "
+		buf[1] = w.headerTop()
+		buf[2] = " "
+		buf[3] = w.headerBottom()
+		buf[4] = " "
+
+		buf = w.body(buf, x, y)
+
+	}
+
+	return buf, nil
+}
+
+func (w *editWidget) keybinding() error {
+
+	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlN, gocui.ModNone, w.newProject); err != nil {
 		return err
 	}
-	v.Clear()
-	v.Frame = true
-	v.Title = " Edit "
 
-	if app.edit != nil {
+	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlE, gocui.ModNone, w.editProject); err != nil {
+		return err
+	}
 
-		caption := make([]string, maxX-7)
-		for i := range caption {
-			caption[i] = " "
-		}
-		bufCaption := make([]string, max((len(app.edit.n.model)-1)*5+3, maxX-7))
+	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlD, gocui.ModNone, w.dubProject); err != nil {
+		return err
+	}
 
-		footer := make([]string, maxX-7)
-		for i := range footer {
-			footer[i] = " "
-		}
-		bufFooter := make([]string, max((len(app.edit.n.model)-1)*5+3, maxX-7))
+	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlS, gocui.ModNone, w.saveProject); err != nil {
+		return err
+	}
 
-		buf := make([][]string, maxY-11)
-		for i := range buf {
-			buf[i] = make([]string, maxX-8)
-			for ii := range buf[i] {
-				buf[i][ii] = " "
-			}
-		}
+	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlV, gocui.ModNone, w.validateProject); err != nil {
+		return err
+	}
 
-		maxS := len(app.edit.n.model)
-		maxN := 0
-		for _, v := range app.edit.n.model {
-			maxN = max(maxN, len(v.stage))
-		}
-		maxS--
-		maxN += 2
+	if err := gui.SetKeybinding(w.name, gocui.KeyArrowLeft, gocui.ModNone, w.keyArrowLeft); err != nil {
+		return err
+	}
 
-		bufWhite := make([][]string, max(maxN*2, maxY-11+2))
-		for i := range bufWhite {
-			bufWhite[i] = make([]string, max(maxS*5+2, maxX-8))
-		}
+	if err := gui.SetKeybinding(w.name, gocui.KeyArrowRight, gocui.ModNone, w.keyArrowRight); err != nil {
+		return err
+	}
 
-		bufGreen := make([][]string, max(maxN*2, maxY-11+2))
-		for i := range bufGreen {
-			bufGreen[i] = make([]string, max(maxS*5+2, maxX-8))
-		}
+	if err := gui.SetKeybinding(w.name, gocui.KeyArrowUp, gocui.ModNone, w.keyArrowUp); err != nil {
+		return err
+	}
 
-		bufRed := make([][]string, max(maxN*2, maxY-11+2))
-		for i := range bufRed {
-			bufRed[i] = make([]string, max(maxS*5+2, maxX-8))
-		}
+	if err := gui.SetKeybinding(w.name, gocui.KeyArrowDown, gocui.ModNone, w.keyArrowDown); err != nil {
+		return err
+	}
 
-		for i, s := range app.edit.n.model {
+	if err := gui.SetKeybinding(w.name, gocui.KeyInsert, gocui.ModNone, w.insertStage); err != nil {
+		return err
+	}
 
-			i5 := i * 5
+	if err := gui.SetKeybinding(w.name, gocui.KeyDelete, gocui.ModNone, w.deleteStage); err != nil {
+		return err
+	}
 
-			fillStage := "7"
-			if i == app.cursor.s {
-				fillStage = "2"
-			}
-			if app.linkEdit && i == app.link.s {
-				fillStage = "2"
-			}
+	if err := gui.SetKeybinding(w.name, gocui.KeyEnter, gocui.ModNone, w.insertNode); err != nil {
+		return err
+	}
 
-			if i == 0 {
-				bufCaption[i5] = fmt.Sprintf("\033[3%s;1mi", fillStage)
-				bufCaption[i5+1] = fmt.Sprintf("n\033[0m")
-			} else if i == len(app.edit.n.model)-1 {
-				bufCaption[i5] = fmt.Sprintf("\033[3%s;1mo", fillStage)
-				bufCaption[i5+1] = "u"
-				bufCaption[i5+2] = fmt.Sprintf("t\033[0m")
-			} else {
-				bufCaption[i5] = fmt.Sprintf("\033[3%s;1m%v\033[0m", fillStage, i-1)
-				if i > 10 {
-					bufCaption[i5] = fmt.Sprintf("\033[3%s;1m%s", fillStage, strconv.Itoa(i - 1)[0:1])
-					bufCaption[i5+1] = fmt.Sprintf("%s\033[0m", strconv.Itoa(i - 1)[1:2])
-				}
-				if i > 100 {
-					bufCaption[i5] = fmt.Sprintf("\033[3%s;1m%s", fillStage, strconv.Itoa(i - 1)[0:1])
-					bufCaption[i5+1] = strconv.Itoa(i - 1)[1:2]
-					bufCaption[i5+2] = fmt.Sprintf("%s\033[0m", strconv.Itoa(i - 1)[2:3])
-				}
-			}
+	if err := gui.SetKeybinding(w.name, gocui.KeySpace, gocui.ModNone, w.editNodeSource); err != nil {
+		return err
+	}
 
-			if i == app.cursor.s {
-				if len(app.edit.n.model[i].stage) > 0 {
-					bufFooter[i5] = fmt.Sprintf("\033[32;1m%v\033[0m", app.cursor.n)
-					if app.cursor.n > 9 {
-						bufFooter[i5] = fmt.Sprintf("\033[32;1m%s", strconv.Itoa(app.cursor.n)[0:1])
-						bufFooter[i5+1] = fmt.Sprintf("%s\033[0m", strconv.Itoa(app.cursor.n)[1:2])
-					}
-					if app.cursor.n > 99 {
-						bufFooter[i5] = fmt.Sprintf("\033[32;1m%s", strconv.Itoa(app.cursor.n)[0:1])
-						bufFooter[i5+1] = strconv.Itoa(app.cursor.n)[1:2]
-						bufFooter[i5+2] = fmt.Sprintf("%s\033[0m", strconv.Itoa(app.cursor.n)[2:3])
-					}
-				} else {
-					bufFooter[i5] = fmt.Sprintf("\033[32;1m%s", "─")
-					bufFooter[i5+1] = fmt.Sprintf("%s\033[0m", "─")
-				}
-			}
+	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlSpace, gocui.ModNone, w.editNode); err != nil {
+		return err
+	}
 
-			for ii, n := range s.stage {
+	if err := gui.SetKeybinding(w.name, gocui.KeyBackspace, gocui.ModNone, w.deleteNode); err != nil {
+		return err
+	}
 
-				oneii2 := 1 + ii*2
-
-				fillNode := "7"
-				fillNodeChar := "█"
-				if i == app.cursor.s && ii == app.cursor.n {
-					fillNode = "5"
-				}
-				if app.linkEdit && i == app.link.s && ii == app.link.n {
-					fillNodeChar = "▓"
-				}
-				bufWhite[oneii2][i5] = fmt.Sprintf("\033[3%s;4m%s", fillNode, fillNodeChar)
-				bufWhite[oneii2][i5+1] = fmt.Sprintf("%s\033[0m", fillNodeChar)
-
-				if len(n.source) > 0 {
-					c := "7"
-					if i == app.cursor.s && ii == app.cursor.n {
-						c = "2"
-					}
-					bufWhite[oneii2][i5-1] = fmt.Sprintf("\033[3%s;4m─\033[0m", c)
-				}
-
-				for _, src := range n.source {
-
-					bufWhite[1+src.n*2][src.s*5+2] = "─"
-
-					s53 := i*5 - 2
-					srcn := src.n
-
-					if src.s != i-1 {
-
-						srcn = len(app.edit.n.model[i-1].stage)
-						bufWhite[1+srcn*2][i*5-3] = "╾"
-
-						iin := len(app.edit.n.model[src.s+1].stage)
-						x := src.s*5 + 3
-						bufWhite[1+iin*2][x+1] = "╼"
-
-						if src.n < iin {
-							bufWhite[1+src.n*2][x] = drawBox(bufWhite[1+src.n*2][x], "┐")
-							bufWhite[1+iin*2][x] = drawBox(bufWhite[1+iin*2][x], "└")
-							for y := 1 + src.n*2 + 1; y < 1+iin*2; y++ {
-								bufWhite[y][x] = drawBox(bufWhite[y][x], "│")
-							}
-						} else if src.n > iin {
-							bufWhite[1+src.n*2][x] = drawBox(bufWhite[1+src.n*2][x], "┘")
-							bufWhite[1+iin*2][x] = drawBox(bufWhite[1+iin*2][x], "┌")
-							for y := 1 + iin*2 + 1; y < 1+src.n*2; y++ {
-								bufWhite[y][x] = drawBox(bufWhite[y][x], "│")
-							}
-						} else {
-							bufWhite[1+src.n*2][x] = drawBox(bufWhite[1+src.n*2][x], "─")
-						}
-
-					}
-
-					if srcn < ii {
-						bufWhite[1+srcn*2][s53] = drawBox(bufWhite[1+srcn*2][s53], "┐")
-						bufWhite[1+ii*2][s53] = drawBox(bufWhite[1+ii*2][s53], "└")
-						for y := 1 + srcn*2 + 1; y < 1+ii*2; y++ {
-							bufWhite[y][s53] = drawBox(bufWhite[y][s53], "│")
-						}
-					} else if srcn > ii {
-						bufWhite[1+srcn*2][s53] = drawBox(bufWhite[1+srcn*2][s53], "┘")
-						bufWhite[1+ii*2][s53] = drawBox(bufWhite[1+ii*2][s53], "┌")
-						for y := 1 + ii*2 + 1; y < 1+srcn*2; y++ {
-							bufWhite[y][s53] = drawBox(bufWhite[y][s53], "│")
-						}
-					} else {
-						bufWhite[1+srcn*2][s53] = drawBox(bufWhite[1+srcn*2][s53], "─")
-					}
-
-				}
-
-			}
-		}
-
-		if len(app.edit.n.model[app.cursor.s].stage) > 0 {
-			for _, src := range app.edit.n.model[app.cursor.s].stage[app.cursor.n].source {
-				fillNodeChar := "█"
-				if app.linkEdit && src.s == app.link.s && src.n == app.link.n {
-					fillNodeChar = "▓"
-				}
-				bufGreen[1+src.n*2][src.s*5] = fmt.Sprintf("%s", fillNodeChar)
-				bufGreen[1+src.n*2][src.s*5+1] = fmt.Sprintf("%s", fillNodeChar)
-				bufGreen[1+src.n*2][src.s*5+2] = "─"
-
-				i := app.cursor.s
-				ii := app.cursor.n
-
-				s53 := i*5 - 2
-				srcn := src.n
-
-				if src.s != i-1 {
-
-					srcn = len(app.edit.n.model[i-1].stage)
-					bufGreen[1+srcn*2][i*5-3] = "╾"
-
-					iin := len(app.edit.n.model[src.s+1].stage)
-					x := src.s*5 + 3
-					bufGreen[1+iin*2][x+1] = "╼"
-
-					if src.n < iin {
-						bufGreen[1+src.n*2][x] = drawBox(bufGreen[1+src.n*2][x], "┐")
-						bufGreen[1+iin*2][x] = drawBox(bufGreen[1+iin*2][x], "└")
-						for y := 1 + src.n*2 + 1; y < 1+iin*2; y++ {
-							bufGreen[y][x] = drawBox(bufGreen[y][x], "│")
-						}
-					} else if src.n > iin {
-						bufGreen[1+src.n*2][x] = drawBox(bufGreen[1+src.n*2][x], "┘")
-						bufGreen[1+iin*2][x] = drawBox(bufGreen[1+iin*2][x], "┌")
-						for y := 1 + iin*2 + 1; y < 1+src.n*2; y++ {
-							bufGreen[y][x] = drawBox(bufGreen[y][x], "│")
-						}
-					} else {
-						bufGreen[1+src.n*2][x] = drawBox(bufGreen[1+src.n*2][x], "─")
-					}
-
-				}
-
-				if srcn < ii {
-					bufGreen[1+srcn*2][s53] = drawBox(bufGreen[1+srcn*2][s53], "┐")
-					bufGreen[1+ii*2][s53] = drawBox(bufGreen[1+ii*2][s53], "└")
-					for y := 1 + srcn*2 + 1; y < 1+ii*2; y++ {
-						bufGreen[y][s53] = drawBox(bufGreen[y][s53], "│")
-					}
-				} else if srcn > ii {
-					bufGreen[1+srcn*2][s53] = drawBox(bufGreen[1+srcn*2][s53], "┘")
-					bufGreen[1+ii*2][s53] = drawBox(bufGreen[1+ii*2][s53], "┌")
-					for y := 1 + ii*2 + 1; y < 1+srcn*2; y++ {
-						bufGreen[y][s53] = drawBox(bufGreen[y][s53], "│")
-					}
-				} else {
-					bufGreen[1+srcn*2][s53] = drawBox(bufGreen[1+srcn*2][s53], "─")
-				}
-
-			}
-		}
-
-		for y := range bufGreen {
-			for x := range bufGreen[y] {
-				if bufGreen[y][x] != "" {
-					bufGreen[y][x] = fmt.Sprintf("\033[32;4m%s\033[0m", bufGreen[y][x])
-				}
-			}
-		}
-
-		if app.invalid {
-			for i, s := range app.edit.n.model {
-				if len(s.stage) == 0 {
-					for iii := range bufRed {
-						bufRed[iii][i*5] = fmt.Sprintf("\033[31;1m█")
-						bufRed[iii][i*5+1] = fmt.Sprintf("█\033[0m")
-					}
-				}
-				for ii, n := range s.stage {
-					if !n.valid {
-						bufRed[1+ii*2][i*5] = fmt.Sprintf("\033[31;1m█")
-						bufRed[1+ii*2][i*5+1] = fmt.Sprintf("█\033[0m")
-					}
-				}
-			}
-		}
-
-		maxXs := int(math.Floor(float64(maxX)-8.0) / 5.0)
-		maxYn := int(math.Floor(float64(maxY)-11.0)/2.0) - 2
-		if app.linkEdit {
-			if app.link.s > app.scroll.s+maxXs {
-				app.scroll.s = app.link.s - maxXs
-			}
-			if app.link.s < app.scroll.s {
-				app.scroll.s = app.link.s
-			}
-			if app.link.n > app.scroll.n+maxYn {
-				app.scroll.n = app.link.n - maxYn
-			}
-			if app.link.n < app.scroll.n {
-				app.scroll.n = app.link.n
-			}
-		} else {
-			if app.cursor.s > app.scroll.s+maxXs {
-				app.scroll.s = app.cursor.s - maxXs
-			}
-			if app.cursor.s < app.scroll.s {
-				app.scroll.s = app.cursor.s
-			}
-			if app.cursor.n > app.scroll.n+maxYn {
-				app.scroll.n = app.cursor.n - maxYn
-			}
-			if app.cursor.n < app.scroll.n {
-				app.scroll.n = app.cursor.n
-			}
-		}
-
-		for i := range buf {
-			for ii := range buf[i] {
-				y := i + app.scroll.n*2
-				x := ii + app.scroll.s*5
-				if bufWhite[y][x] != "" {
-					buf[i][ii] = bufWhite[y][x]
-				}
-				if bufGreen[y][x] != "" {
-					buf[i][ii] = bufGreen[y][x]
-				}
-				if bufRed[y][x] != "" {
-					buf[i][ii] = bufRed[y][x]
-				}
-			}
-		}
-
-		for i := range caption {
-			if bufCaption[i+app.scroll.s*5] != "" {
-				caption[i] = bufCaption[i+app.scroll.s*5]
-			}
-		}
-
-		for i := range footer {
-			if bufFooter[i+app.scroll.s*5] != "" {
-				footer[i] = bufFooter[i+app.scroll.s*5]
-			}
-		}
-
-		fmt.Fprintf(v, " \n")
-		fmt.Fprintf(v, "  %s %s      %s\n", dirtyMark(app.edit.ed), untrimRight(app.edit.status.text(), 12), numberMark(app.edit))
-		fmt.Fprintf(v, " \n")
-		nodeStat := ""
-		if len(app.edit.n.model[app.cursor.s].stage) > 0 {
-			nodeStat = fmt.Sprintf("node = %v : %v", app.edit.n.model[app.cursor.s].stage[app.cursor.n].size, app.edit.n.model[app.cursor.s].stage[app.cursor.n].volume)
-		}
-		fmt.Fprintf(v, "    total = %v : %v    stage = %v : %v    %s\n", app.edit.n.size, app.edit.n.volume, app.edit.n.model[app.cursor.s].size, app.edit.n.model[app.cursor.s].volume, nodeStat)
-		fmt.Fprintf(v, " \n")
-		fmt.Fprintf(v, "  ┌ %s┐  \n", strings.Join(caption, ""))
-		for _, s := range buf {
-			fmt.Fprintf(v, "  │ %s │ \n", strings.Join(s, ""))
-		}
-		fmt.Fprintf(v, "  └ %s┘  \n", strings.Join(footer, ""))
+	if err := gui.SetKeybinding(w.name, gocui.KeyEsc, gocui.ModNone, w.linkEsc); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-var charBox map[string]int = map[string]int{
-	" ": 0b0000,
-	"└": 0b1100,
-	"┌": 0b0110,
-	"┐": 0b0011,
-	"┘": 0b1001,
-	"┴": 0b1101,
-	"├": 0b1110,
-	"┬": 0b0111,
-	"┤": 0b1011,
-	"│": 0b1010,
-	"─": 0b0101,
-	"┼": 0b1111,
+func (w *editWidget) newProject(_ *gocui.Gui, _ *gocui.View) error {
+
+	w.setMode(editNode)
+	w.setDraft(newProject(nil))
+	w.reset()
+
+	return nil
 }
 
-var charInt map[int]string = map[int]string{
-	0b0000: " ",
-	0b1100: "└",
-	0b0110: "┌",
-	0b0011: "┐",
-	0b1001: "┘",
-	0b1101: "┴",
-	0b1110: "├",
-	0b0111: "┬",
-	0b1011: "┤",
-	0b1010: "│",
-	0b0101: "─",
-	0b1111: "┼",
-}
+func (w *editWidget) editProject(_ *gocui.Gui, _ *gocui.View) error {
 
-func drawBox(src, char string) string {
+	w.setMode(editNode)
 
-	if src == "" {
-		src = " "
+	if w.draft != nil {
+		w.draft.edit()
 	}
 
-	return charInt[charBox[src]|charBox[char]]
+	return nil
 }
 
-func dirtyMark(d bool) string {
+func (w *editWidget) dubProject(_ *gocui.Gui, _ *gocui.View) error {
 
-	if d {
-		return "\033[32;1m*\033[0m"
+	w.setMode(editNode)
+
+	p := app.v.result.focused()
+	if p != nil {
+		w.setDraft(newProject(p))
+		w.reset()
 	}
 
-	return " "
+	return nil
 }
 
-func numberMark(p *project) string {
+func (w *editWidget) saveProject(_ *gocui.Gui, _ *gocui.View) error {
 
-	if p.status == psNew {
+	w.setMode(editNode)
 
-		if p.o != nil {
-			return fmt.Sprintf("## ? \033[30;1m[%v]\033[0m", p.o.id)
+	if w.draft != nil {
+		w.draft.save()
+	}
+
+	return nil
+}
+
+func (w *editWidget) validateProject(_ *gocui.Gui, _ *gocui.View) error {
+
+	w.setMode(editNode)
+
+	if w.draft != nil {
+		if !w.draft.validate() {
+			w.setInvalid(true)
+			go w.hideInvalid()
 		}
-		return fmt.Sprintf("## ?")
-
 	}
 
-	if p.o != nil {
-		return fmt.Sprintf("## %v \033[30;1m[%v]\033[0m", p.id, p.o.id)
-	}
-	return fmt.Sprintf("## %v", p.id)
-
+	return nil
 }
 
-func selectStageLeft() {
+func (w *editWidget) keyArrowLeft(_ *gocui.Gui, _ *gocui.View) error {
 
-	if app.linkEdit {
-		if app.link.s > 0 {
-			app.link.s--
+	w.selectStageLeft()
+	w.shiftCursorY()
+
+	return nil
+}
+
+func (w *editWidget) keyArrowRight(_ *gocui.Gui, _ *gocui.View) error {
+
+	w.selectStageRight()
+	w.shiftCursorY()
+
+	return nil
+}
+
+func (w *editWidget) keyArrowUp(_ *gocui.Gui, _ *gocui.View) error {
+
+	w.selectNodeUp()
+
+	return nil
+}
+
+func (w *editWidget) keyArrowDown(_ *gocui.Gui, _ *gocui.View) error {
+
+	w.selectNodeDown()
+
+	return nil
+}
+
+func (w *editWidget) insertStage(_ *gocui.Gui, _ *gocui.View) error {
+
+	if w.draft == nil || !w.draft.ed {
+		return nil
+	}
+
+	w.setMode(editNode)
+	insertStage()
+	w.shiftCursorY()
+
+	return nil
+}
+
+func (w *editWidget) deleteStage(_ *gocui.Gui, _ *gocui.View) error {
+
+	if w.draft == nil || !w.draft.ed {
+		return nil
+	}
+
+	w.setMode(editNode)
+	deleteStage()
+	w.shiftCursorY()
+	w.draft.n.measure()
+
+	return nil
+}
+
+func (w *editWidget) insertNode(_ *gocui.Gui, _ *gocui.View) error {
+
+	if w.draft == nil || !w.draft.ed {
+		return nil
+	}
+
+	w.setMode(editNode)
+
+	if w.cursor.x > 0 && w.cursor.x < len(w.draft.n.model)-1 {
+		w.draft.n.model[w.cursor.x].addNode()
+		w.setCursor(position{len(w.draft.n.model[w.cursor.x].stage) - 1, w.cursor.y})
+		return app.openModal(newNodeSizeBox())
+	}
+
+	w.draft.n.measure()
+
+	return nil
+}
+
+func (w *editWidget) editNodeSource(_ *gocui.Gui, _ *gocui.View) error {
+
+	if w.draft == nil || !w.draft.ed {
+		return nil
+	}
+
+	if w.links() {
+		if w.cursor.x != w.link.x || w.cursor.y != w.link.y {
+
+			found := false
+			for i, src := range w.draft.n.model[w.cursor.x].stage[w.cursor.y].source {
+				if src.s == w.link.x && src.n == w.link.y {
+					w.draft.n.model[w.cursor.x].stage[w.cursor.y].source = append(w.draft.n.model[w.cursor.x].stage[w.cursor.y].source[:i], w.draft.n.model[w.cursor.x].stage[w.cursor.y].source[i+1:]...)
+					found = true
+					break
+				}
+			}
+
+			if !found && w.link.x < w.cursor.x && len(w.draft.n.model[w.link.x].stage) > w.link.y {
+				w.draft.n.model[w.cursor.x].stage[w.cursor.y].source = append(w.draft.n.model[w.cursor.x].stage[w.cursor.y].source, projectModelSource{s: w.link.x, n: w.link.y})
+			}
+
+			w.draft.n.measure()
 		}
 	} else {
-		if app.cursor.s > 0 {
-			app.cursor.s--
+		if len(w.draft.n.model[w.cursor.x].stage) == 0 {
+			return nil
+		}
+		w.link = position{w.cursor.x, w.cursor.y}
+		w.mode = editLink
+	}
+
+	return nil
+}
+
+func (w *editWidget) editNode(_ *gocui.Gui, _ *gocui.View) error {
+
+	if w.draft == nil || !w.draft.ed {
+		return nil
+	}
+
+	w.mode = editNode
+
+	return app.openModal(newNodeSizeBox())
+}
+
+func (w *editWidget) deleteNode(_ *gocui.Gui, _ *gocui.View) error {
+
+	if w.draft == nil || !w.draft.ed {
+		return nil
+	}
+
+	w.mode = editNode
+
+	if w.cursor.x > 0 && w.cursor.x < len(w.draft.n.model)-1 {
+		w.draft.n.model[w.cursor.x].removeNode(w.cursor.y)
+		for i := range w.draft.n.model {
+			for ii := range w.draft.n.model[i].stage {
+				for iii, src := range w.draft.n.model[i].stage[ii].source {
+					if src.s == w.cursor.x && src.n == w.cursor.y {
+						w.draft.n.model[i].stage[ii].source = append(w.draft.n.model[i].stage[ii].source[:iii], w.draft.n.model[i].stage[ii].source[iii+1:]...)
+						break
+					}
+				}
+			}
+		}
+		w.shiftCursorY()
+		w.draft.n.measure()
+	}
+
+	return nil
+}
+
+func (w *editWidget) linkEsc(_ *gocui.Gui, _ *gocui.View) error {
+
+	w.mode = editNode
+
+	return nil
+}
+
+func (w *editWidget) hideInvalid() {
+
+	time.Sleep(1 * time.Second)
+	w.setInvalid(false)
+	gui.Update(func(g *gocui.Gui) error {
+		return nil
+	})
+
+}
+
+func (w *editWidget) headerTop() string {
+
+	d := "  "
+	if w.draft.ed {
+		d = " \033[32;1m*\033[0m"
+	}
+
+	id := "## ?"
+	if w.draft.status != psNew {
+		id = fmt.Sprintf("## %v", w.draft.id)
+	}
+
+	o := ""
+	if w.draft.o != nil {
+		o = fmt.Sprintf(" \033[30;1m[%v]\033[0m", w.draft.o.id)
+	}
+
+	return fmt.Sprintf(" %s  %s  %s%s", d, w.draft.status.text(), id, o)
+}
+
+func (w *editWidget) headerBottom() string {
+
+	sn := ""
+	if len(w.draft.n.model[w.cursor.x].stage) > 0 {
+		sn = fmt.Sprintf("  stage = %v : %v  node = %v : %v",
+			w.draft.n.model[w.cursor.x].size, w.draft.n.model[w.cursor.x].volume,
+			w.draft.n.model[w.cursor.x].stage[w.cursor.y].size, w.draft.n.model[w.cursor.x].stage[w.cursor.y].volume,
+		)
+	}
+
+	return fmt.Sprintf("     total = %v : %v%s", w.draft.n.size, w.draft.n.volume, sn)
+}
+
+func (w *editWidget) body(buf []string, x, y int) []string {
+
+	width := int(math.Floor((float64(x) - 10.0) / 5.0))
+	if x-10-width*5 >= 2 {
+		width++
+	}
+	height := int(math.Floor((float64(y) - 12.0) / 2.0))
+	if y-12-height*2 >= 1 {
+		height++
+	}
+
+	buf = w.bodyTop(buf, width, x)
+	buf = w.bodyCenter(buf, width, height)
+	buf = w.bodyBottom(buf, width, height, x)
+
+	return buf
+}
+
+func (w *editWidget) bodyTop(buf []string, width, x int) []string {
+
+	line := ""
+	span := x - 10
+
+	for i := range min(len(w.draft.n.model), width) {
+
+		index := w.getX() + i
+
+		color := "7;4"
+		if !w.links() && i == w.cursor.x {
+			color = "5;4"
+		}
+		if w.links() && i == w.link.x {
+			color = "3;4"
+		}
+		if w.invalid && len(w.draft.n.model[index].stage) == 0 {
+			color = "1;7"
+		}
+
+		size := 5
+		if span < 5 {
+			size = span
+		}
+		s := trail(index, size, 0)
+		if index == 0 {
+			s = trail("in", size, 0)
+		}
+		if index == len(w.draft.n.model)-1 {
+			s = trail("out", size, 0)
+		}
+		line += fmt.Sprintf("\033[3%sm%s\033[0m", color, s)
+		span -= size
+
+	}
+
+	buf = append(buf, fmt.Sprintf("  \033[30;1m┌\033[0m  %s  \033[30;1m┐\033[0m  ", space(line, 0, span)))
+
+	scroll := " "
+	if w.getY() > 0 {
+		scroll = "▲"
+	}
+
+	buf = append(buf, fmt.Sprintf("     %s  \033[30;1m%s\033[0m  ", space("", x-10, 0), scroll))
+
+	return buf
+}
+
+func (w *editWidget) bodyCenter(buf []string, width, height int) []string {
+
+	grid := make([]string, height)
+
+	for i := range min(len(w.draft.n.model), width) {
+		s := w.draft.n.model[w.getX()+i]
+		yy := 0
+
+		for ii := w.getY(); ii < min(len(s.stage), height); ii++ {
+			n := s.stage[ii]
+
+			color := "7;4"
+			for _, src := range w.draft.n.model[w.cursor.x+w.offset.x].stage[w.cursor.y+w.offset.y].source {
+				if src.s == w.getX()+i && src.n == w.getY()+yy {
+					color = "2;4"
+				}
+			}
+			if i == w.cursor.x && yy == w.cursor.y {
+				color = "5;4"
+			}
+			if w.invalid && !n.valid {
+				color = "1;1"
+			}
+
+			char := "██"
+			if w.links() && i == w.link.x && yy == w.link.y {
+				char = "▓▓"
+			}
+
+			grid[yy] += fmt.Sprintf("\033[3%sm%s\033[0m   ", color, char)
+			yy++
+		}
+
+		h := height - yy
+		for range h {
+			grid[yy] += space("", 0, 5)
+			yy++
+		}
+
+	}
+
+	for i, line := range grid {
+
+		color := "7;4"
+		if !w.links() && i == w.cursor.y {
+			color = "5;4"
+		}
+		if w.links() && i == w.link.y {
+			color = "3;4"
+		}
+
+		num := lead(w.getY()+i+1, 3, 0)
+		if len(line) == min(len(w.draft.n.model), width)*5 {
+			num = lead("", 3, 0)
+		}
+
+		buf = append(buf, fmt.Sprintf("\033[3%sm%s\033[0m  %s", color, num, line))
+
+		if i != len(grid)-1 {
+			buf = append(buf, " ")
+		}
+	}
+
+	return buf
+}
+
+func (w *editWidget) bodyBottom(buf []string, width, height, x int) []string {
+
+	s := 0
+	for i := range min(len(w.draft.n.model), width) {
+		s = max(len(w.draft.n.model[w.getX()+i].stage), s)
+	}
+	scroll := " "
+	if (!w.links() && s-w.offset.y > height) || (w.links() && s-w.scroll.y > height) {
+		scroll = "▼"
+	}
+
+	buf = append(buf, fmt.Sprintf("     %s  \033[30;1m%s\033[0m  ", space("", x-10, 0), scroll))
+
+	left := " "
+	if w.getX() > 0 {
+		left = "◄"
+	}
+
+	right := " "
+	if (!w.links() && len(w.draft.n.model)-w.offset.x > width) || (w.links() && len(w.draft.n.model)-w.scroll.x > width) {
+		right = "►"
+	}
+
+	buf = append(buf, fmt.Sprintf("  \033[30;1m└%s %s %s┘\033[0m", left, space("", x-10, 0), right))
+
+	return buf
+}
+
+func (w *editWidget) selectStageLeft() {
+
+	if w.links() {
+		if w.link.x > 0 {
+			w.setLink(position{w.link.x - 1, w.link.y})
+		}
+	} else {
+		if w.cursor.x > 0 {
+			w.setCursor(position{w.cursor.x - 1, w.cursor.y})
 		}
 	}
 
 }
 
-func selectStageRight() {
+func (w *editWidget) selectStageRight() {
 
-	if app.linkEdit {
-		if app.link.s < len(app.edit.n.model)-1 {
-			app.link.s++
+	if w.links() {
+		if w.link.x < len(w.draft.n.model)-1 {
+			w.setLink(position{w.link.x + 1, w.link.y})
 		}
 	} else {
-		if app.cursor.s < len(app.edit.n.model)-1 {
-			app.cursor.s++
+		if w.cursor.x < len(w.draft.n.model)-1 {
+			w.setCursor(position{w.cursor.x + 1, w.cursor.y})
 		}
 	}
 
 }
 
-func selectNodeUp() {
+func (w *editWidget) selectNodeUp() {
 
-	if app.linkEdit {
-		if app.link.n > 0 {
-			app.link.n--
+	if w.links() {
+		if w.link.y > 0 {
+			w.link.y--
 		}
 	} else {
-		if app.cursor.n > 0 {
-			app.cursor.n--
+		if w.cursor.y > 0 {
+			w.cursor.y--
 		}
 	}
 
 }
 
-func selectNodeDown() {
+func (w *editWidget) selectNodeDown() {
 
-	if app.linkEdit {
-		if app.link.n < len(app.edit.n.model[app.link.s].stage)-1 {
-			app.link.n++
+	if w.links() {
+		if w.link.y < len(w.draft.n.model[w.link.x].stage)-1 {
+			w.link.y++
 		}
 	} else {
-		if app.cursor.n < len(app.edit.n.model[app.cursor.s].stage)-1 {
-			app.cursor.n++
+		if w.cursor.y < len(w.draft.n.model[w.cursor.x].stage)-1 {
+			w.cursor.y++
 		}
 	}
 
 }
 
-func shiftCursorY() {
+func (w *editWidget) shiftCursorY() {
 
-	if app.linkEdit {
-		if app.link.n != 0 && app.link.n > len(app.edit.n.model[app.link.s].stage)-1 {
-			app.link.n = max(0, len(app.edit.n.model[app.link.s].stage)-1)
+	if w.links() {
+		if w.link.y != 0 && w.link.y > len(w.draft.n.model[w.link.x].stage)-1 {
+			w.link.y = max(0, len(w.draft.n.model[w.link.x].stage)-1)
 		}
 	} else {
-		if app.cursor.n != 0 && app.cursor.n > len(app.edit.n.model[app.cursor.s].stage)-1 {
-			app.cursor.n = max(0, len(app.edit.n.model[app.cursor.s].stage)-1)
+		if w.cursor.y != 0 && w.cursor.y > len(w.draft.n.model[w.cursor.x].stage)-1 {
+			w.cursor.y = max(0, len(w.draft.n.model[w.cursor.x].stage)-1)
 		}
 	}
 
