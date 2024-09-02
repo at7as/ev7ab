@@ -9,6 +9,11 @@ type position struct {
 	x, y int
 }
 
+func newPosition(x, y int) position {
+
+	return position{x, y}
+}
+
 type kv struct {
 	key, value string
 }

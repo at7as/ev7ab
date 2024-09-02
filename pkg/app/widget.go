@@ -19,8 +19,7 @@ type widget struct {
 func (w *widget) setCursor(v position) {
 
 	if v.x != w.cursor.x || v.y != w.cursor.y {
-		w.cursor.x = v.x
-		w.cursor.y = v.y
+		w.cursor = v
 		w.mark()
 	}
 
@@ -29,8 +28,7 @@ func (w *widget) setCursor(v position) {
 func (w *widget) setOffset(v position) {
 
 	if v.x != w.offset.x || v.y != w.offset.y {
-		w.offset.x = v.x
-		w.offset.y = v.y
+		w.offset = v
 		w.mark()
 	}
 
@@ -45,8 +43,8 @@ func newWidget(ctrl controller, name string) *widget {
 		buf:    []string{},
 		x:      0,
 		y:      0,
-		cursor: position{0, 0},
-		offset: position{0, 0},
+		cursor: newPosition(0, 0),
+		offset: newPosition(0, 0),
 	}
 }
 
@@ -118,8 +116,8 @@ func (w *widget) clean() error {
 
 func (w *widget) reset() {
 
-	w.setCursor(position{0, 0})
-	w.setOffset(position{0, 0})
+	w.setCursor(newPosition(0, 0))
+	w.setOffset(newPosition(0, 0))
 
 }
 

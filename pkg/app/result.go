@@ -24,17 +24,49 @@ func (w *resultWidget) setHolded(v bool) {
 
 }
 
-func (w *resultWidget) updateShow() {
+func (w *resultWidget) getActivated() int {
+
+	cnt := 0
+	for _, p := range w.show {
+		if p.status == projectActive {
+			cnt++
+		}
+	}
+
+	return cnt
+}
+
+func (w *resultWidget) getFocused() *project {
+
+	if w.cursor.y < len(w.show) {
+		return w.show[w.cursor.y]
+	}
+
+	return nil
+}
+
+func (w *resultWidget) getSelected() bool {
+
+	for _, p := range w.show {
+		if p.selected {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (w *resultWidget) updateShow(height int) {
 
 	l := make([]*project, 0, len(app.s.list))
 	for _, p := range app.s.list {
-		if (!w.holded && p.status == psActive) || (w.holded && p.status != psTerminated) {
+		if (!w.holded && p.status == projectActive) || (w.holded && p.status != projectTerminated) {
 			l = append(l, p)
 		}
 	}
 	w.show = l
 
-	w.mark()
+	w.shift(height)
 
 }
 
@@ -47,12 +79,12 @@ func (w *resultWidget) updateWidth() {
 	for _, p := range w.show {
 		w.width["num"] = max(len(fmt.Sprint(p.id)), w.width["num"])
 		w.width["status"] = max(len(p.status.text()), w.width["status"])
-		w.width["size"] = max(len(fmt.Sprint(p.s.size)), w.width["size"])
-		w.width["volume"] = max(len(fmt.Sprint(p.s.volume)), w.width["volume"])
-		w.width["gen"] = max(len(fmt.Sprint(p.s.gen)), w.width["gen"])
-		w.width["ev"] = max(len(fmt.Sprint(p.s.ev)), w.width["ev"])
-		w.width["age"] = max(len(fmt.Sprint(p.s.age)), w.width["age"])
-		w.width["best"] = max(len(p.s.best), w.width["best"])
+		w.width["size"] = max(len(fmt.Sprint(p.stat.size)), w.width["size"])
+		w.width["volume"] = max(len(fmt.Sprint(p.stat.volume)), w.width["volume"])
+		w.width["gen"] = max(len(fmt.Sprint(p.stat.gen)), w.width["gen"])
+		w.width["ev"] = max(len(fmt.Sprint(p.stat.ev)), w.width["ev"])
+		w.width["age"] = max(len(fmt.Sprint(p.stat.age)), w.width["age"])
+		w.width["best"] = max(len(p.stat.best), w.width["best"])
 	}
 
 	w.width["num"] = max(w.width["num"]+2, 7)
@@ -63,8 +95,6 @@ func (w *resultWidget) updateWidth() {
 	w.width["ev"] = max(w.width["ev"]+2, 8)
 	w.width["age"] = max(w.width["age"]+2, 8)
 	w.width["best"] = max(w.width["best"]+2, 9)
-
-	w.mark()
 
 }
 
@@ -103,15 +133,15 @@ func (w *resultWidget) render() ([]string, error) {
 
 	height := int(math.Floor((float64(y) - 6.0) / 2.0))
 
+	w.updateWidth()
+	w.updateShow(height)
+
 	if w.cursor.y > w.offset.y+height-1 {
-		w.setOffset(position{0, w.cursor.y - height + 1})
+		w.setOffset(newPosition(0, w.cursor.y-height+1))
 	}
 	if w.cursor.y < w.offset.y {
-		w.setOffset(position{0, w.cursor.y})
+		w.setOffset(newPosition(0, w.cursor.y))
 	}
-
-	w.updateWidth()
-	w.updateShow()
 
 	buf := make([]string, y-2)
 
@@ -179,14 +209,16 @@ func (w *resultWidget) toggleRunApp(_ *gocui.Gui, _ *gocui.View) error {
 
 	if app.idle() {
 
-		if w.activated() == 0 {
+		if w.getActivated() == 0 {
 			return nil
 		}
 		app.apply(appRun, "Run...")
+		w.mark()
 
 	} else {
 
 		app.apply(appIdle, "")
+		w.mark()
 
 	}
 
@@ -198,7 +230,7 @@ func (w *resultWidget) moveDown(_ *gocui.Gui, _ *gocui.View) error {
 	if app.idle() {
 
 		if w.cursor.y < len(w.show)-1 {
-			w.setCursor(position{0, w.cursor.y + 1})
+			w.setCursor(newPosition(0, w.cursor.y+1))
 		}
 
 	} else {
@@ -207,10 +239,10 @@ func (w *resultWidget) moveDown(_ *gocui.Gui, _ *gocui.View) error {
 		yy := w.offset.y + int(math.Floor(float64(y)-4.0)/2.0)
 
 		if yy >= len(w.show)-1 {
-			w.setCursor(position{0, len(w.show) - 1})
+			w.setCursor(newPosition(0, len(w.show)-1))
 		} else {
-			w.setCursor(position{0, yy})
-			w.setOffset(position{0, w.offset.y + 1})
+			w.setCursor(newPosition(0, yy))
+			w.setOffset(newPosition(0, w.offset.y+1))
 		}
 
 	}
@@ -223,14 +255,14 @@ func (w *resultWidget) moveUp(_ *gocui.Gui, _ *gocui.View) error {
 	if app.idle() {
 
 		if w.cursor.y > 0 {
-			w.setCursor(position{0, w.cursor.y - 1})
+			w.setCursor(newPosition(0, w.cursor.y-1))
 		}
 
 	} else {
 
 		if w.offset.y > 0 {
-			w.setCursor(position{0, w.offset.y - 1})
-			w.setOffset(position{0, w.offset.y})
+			w.setCursor(newPosition(0, w.offset.y-1))
+			w.setOffset(newPosition(0, w.offset.y))
 		}
 
 	}
@@ -248,7 +280,7 @@ func (w *resultWidget) newProject(_ *gocui.Gui, _ *gocui.View) error {
 
 func (w *resultWidget) editProject(_ *gocui.Gui, _ *gocui.View) error {
 
-	p := w.focused()
+	p := w.getFocused()
 	if p != nil {
 		app.v.edit.setDraft(p)
 		app.v.edit.draft.edit()
@@ -262,7 +294,7 @@ func (w *resultWidget) editProject(_ *gocui.Gui, _ *gocui.View) error {
 
 func (w *resultWidget) dubProject(_ *gocui.Gui, _ *gocui.View) error {
 
-	p := w.focused()
+	p := w.getFocused()
 	if p != nil {
 		app.v.edit.setDraft(newProject(p))
 		app.v.edit.reset()
@@ -279,9 +311,10 @@ func (w *resultWidget) selectProject(_ *gocui.Gui, _ *gocui.View) error {
 		return nil
 	}
 
-	p := w.focused()
+	p := w.getFocused()
 	if p != nil {
 		p.selected = !p.selected
+		w.mark()
 	}
 
 	return nil
@@ -293,9 +326,10 @@ func (w *resultWidget) selectAllProject(_ *gocui.Gui, _ *gocui.View) error {
 		return nil
 	}
 
-	s := !w.selected()
+	s := !w.getSelected()
 	for _, p := range w.show {
 		p.selected = s
+		w.mark()
 	}
 
 	return nil
@@ -307,20 +341,26 @@ func (w *resultWidget) holdProject(_ *gocui.Gui, _ *gocui.View) error {
 		return nil
 	}
 
-	if w.selected() {
+	if w.getSelected() {
 		for _, p := range w.show {
-			if p.status == psActive && p.selected {
-				p.status = psHolded
+			if p.status == projectActive && p.selected {
+				p.status = projectHolded
+				w.mark()
 			}
 		}
 	} else {
-		p := w.focused()
-		if p != nil && p.status == psActive {
-			p.status = psHolded
+		p := w.getFocused()
+		if p != nil && p.status == projectActive {
+			p.status = projectHolded
+			w.mark()
 		}
 	}
 
-	w.next()
+	if !w.holded && w.getSelected() {
+		for _, p := range w.show {
+			p.selected = false
+		}
+	}
 
 	return nil
 }
@@ -335,16 +375,18 @@ func (w *resultWidget) activateProject(_ *gocui.Gui, _ *gocui.View) error {
 		return nil
 	}
 
-	if w.selected() {
+	if w.getSelected() {
 		for _, p := range w.show {
-			if p.status == psHolded && p.selected {
-				p.status = psActive
+			if p.status == projectHolded && p.selected {
+				p.status = projectActive
+				w.mark()
 			}
 		}
 	} else {
-		p := w.focused()
-		if p != nil && p.status == psHolded {
-			p.status = psActive
+		p := w.getFocused()
+		if p != nil && p.status == projectHolded {
+			p.status = projectActive
+			w.mark()
 		}
 	}
 
@@ -357,22 +399,28 @@ func (w *resultWidget) terminateProject(_ *gocui.Gui, _ *gocui.View) error {
 		return nil
 	}
 
-	if w.selected() {
+	if w.getSelected() {
 		for _, p := range w.show {
 			if p.selected {
 				p.selected = false
-				p.status = psTerminated
+				p.status = projectTerminated
+				w.mark()
 			}
 		}
 	} else {
-		p := w.focused()
+		p := w.getFocused()
 		if p != nil {
 			p.selected = false
-			p.status = psTerminated
+			p.status = projectTerminated
+			w.mark()
 		}
 	}
 
-	w.next()
+	if !w.holded && w.getSelected() {
+		for _, p := range w.show {
+			p.selected = false
+		}
+	}
 
 	return nil
 }
@@ -384,8 +432,6 @@ func (w *resultWidget) toggleHolded(_ *gocui.Gui, _ *gocui.View) error {
 	}
 
 	w.setHolded(!w.holded)
-
-	w.next()
 
 	return nil
 }
@@ -416,7 +462,7 @@ func (w *resultWidget) body(buf []string, height, x, y int) []string {
 
 		p := w.show[w.offset.y+i]
 		textColor, statusColor := w.color(p, w.cursor.y == w.offset.y+i)
-		buf[2+i*2+1] = fmt.Sprintf("%s \033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m", w.selectedMark(p), textColor, trail(p.id, w.width["num"], 1), statusColor, trail(p.status.text(), w.width["status"], 1), textColor, lead(p.s.size, w.width["size"], 1), textColor, lead(p.s.volume, w.width["volume"], 1), textColor, lead(p.s.gen, w.width["gen"], 1), textColor, lead(p.s.ev, w.width["ev"], 1), textColor, lead(p.s.age, w.width["age"], 1), textColor, lead(p.s.best, w.width["best"], 1))
+		buf[2+i*2+1] = fmt.Sprintf("%s \033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m│\033[3%sm%s\033[0m", w.selectedMark(p), textColor, trail(p.id, w.width["num"], 1), statusColor, trail(p.status.text(), w.width["status"], 1), textColor, lead(p.stat.size, w.width["size"], 1), textColor, lead(p.stat.volume, w.width["volume"], 1), textColor, lead(p.stat.gen, w.width["gen"], 1), textColor, lead(p.stat.ev, w.width["ev"], 1), textColor, lead(p.stat.age, w.width["age"], 1), textColor, lead(p.stat.best, w.width["best"], 1))
 
 	}
 
@@ -445,7 +491,7 @@ func (w *resultWidget) selectedMark(p *project) string {
 func (w *resultWidget) color(p *project, focused bool) (string, string) {
 
 	if focused && app.idle() {
-		if p.s.goal {
+		if p.stat.goal {
 			return "2;7", "2;7"
 		}
 		return "7;7", "7;7"
@@ -453,62 +499,31 @@ func (w *resultWidget) color(p *project, focused bool) (string, string) {
 
 	text := "0;1"
 	status := "1;1"
-	if p.status == psActive {
+	if p.status == projectActive {
 		text = "7;4"
-		if p.s.goal {
+		if p.stat.goal {
 			status = "2;1"
 		} else {
 			status = "7;4"
 		}
-	} else if p.status == psHolded {
+	} else if p.status == projectHolded {
 		text = "0;1"
 		status = "3;4"
 	}
-	if p.s.goal {
+	if p.stat.goal {
 		text = "2;1"
 	}
 
 	return text, status
 }
 
-func (w *resultWidget) activated() int {
+func (w *resultWidget) shift(height int) {
 
-	cnt := 0
-	for _, p := range w.show {
-		if p.status == psActive {
-			cnt++
-		}
-	}
+	if w.cursor.y > 0 && w.cursor.y > len(w.show)-1 {
 
-	return cnt
-}
+		w.setCursor(newPosition(0, len(w.show)-1))
+		w.setOffset(newPosition(0, len(w.show)-min(len(w.show), height)))
 
-func (w *resultWidget) focused() *project {
-
-	if w.cursor.y < len(w.show) {
-		return w.show[w.cursor.y]
-	}
-
-	return nil
-}
-
-func (w *resultWidget) selected() bool {
-
-	for _, p := range w.show {
-		if p.selected {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (w *resultWidget) next() {
-
-	y := w.cursor.y
-	w.moveDown(nil, nil)
-	if y == w.cursor.y {
-		w.moveUp(nil, nil)
 	}
 
 }

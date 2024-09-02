@@ -200,7 +200,8 @@ func (c *nodeSizeBox) enter(_ *gocui.Gui, _ *gocui.View) error {
 	value, _ := strconv.Atoi(str)
 
 	app.v.edit.setNodeSize(value)
-	app.v.edit.draft.n.measure()
+	app.v.edit.draft.measure()
+	app.v.edit.mark()
 
 	return c.close(nil, nil)
 }

@@ -7,29 +7,47 @@ import (
 )
 
 type project struct {
-	id       int
-	status   projectStatus
-	o        *project
-	s        *projectStat
-	m        *projectModel
-	n        *projectModel
-	ed       bool
+	id     int
+	status projectStatus
+	origin *project
+	stat
+	*model
+	draft    *model
 	selected bool
 }
 
 type projectStatus int
 
 const (
-	psNew projectStatus = iota
-	psActive
-	psHolded
-	psInvalid
-	psTerminated
+	projectEdit projectStatus = iota
+	projectActive
+	projectHolded
+	projectInvalid
+	projectTerminated
 )
+
+type stat struct {
+	size   int
+	volume int
+	gen    int
+	ev     int
+	age    int
+	best   string
+	goal   bool
+}
 
 func newProject(o *project) *project {
 
-	// app.s.setup.list[]
+	s := stat{
+		size:   0,
+		volume: 0,
+		gen:    0,
+		ev:     0,
+		age:    0,
+		best:   "",
+		goal:   false,
+	}
+
 	in := 0
 	out := 0
 	for _, obj := range app.v.setup.list {
@@ -41,115 +59,117 @@ func newProject(o *project) *project {
 		}
 	}
 
-	// in, err = strconv.Atoi(app.setup.m["In"].value)
-	// if err != nil {
-	// 	in = 0
-	// }
-	// out, err = strconv.Atoi(app.setup.m["Out"].value)
-	// if err != nil {
-	// 	out = 0
-	// }
-
-	n := newProjectModel(o, in, out)
-	p := project{
-		id:     0,
-		status: psNew,
-		o:      o,
-		s: &projectStat{
-			size:   0,
-			volume: 0,
-			gen:    0,
-			ev:     0,
-			age:    0,
-			best:   "",
-			goal:   false,
-		},
-		m:        nil,
-		n:        n,
-		ed:       true,
+	return &project{
+		id:       app.s.lab.AddProject([][]lab.Node{}),
+		status:   projectEdit,
+		origin:   o,
+		stat:     s,
+		model:    nil,
+		draft:    newProjectModel(o, in, out),
 		selected: false,
 	}
-
-	return &p
 }
 
 func (p *project) edit() {
 
-	p.n = cloneModel(p.m)
-	p.n.measure()
-	p.ed = true
+	p.draft = p.model.clone()
+	p.draft.measure()
+	p.status = projectEdit
+
+}
+
+func (p *project) cancel() {
+
+	if !p.model.validate() {
+		p.status = projectInvalid
+	} else {
+		p.status = projectHolded
+	}
+
+	p.draft = p.model
+	p.model.measure()
 
 }
 
 func (p *project) validate() bool {
 
-	m := p.n
+	return p.draft.validate()
+}
 
-	for i := range m.model {
-		for ii := range m.model[i].stage {
-			m.model[i].stage[ii].valid = i == len(m.model)-1
-		}
-	}
+func (p *project) measure() {
 
-	for i := range m.model {
-		for ii := range m.model[i].stage {
-			for _, src := range m.model[i].stage[ii].source {
-				m.model[src.s].stage[src.n].valid = true
-			}
-		}
-	}
-
-	for i := range m.model {
-		for ii := range m.model[i].stage {
-			if !m.model[i].stage[ii].valid {
-				continue
-			}
-			m.model[i].stage[ii].valid = m.model[i].stage[ii].size > 0
-			if !m.model[i].stage[ii].valid {
-				continue
-			}
-			if i > 0 {
-				m.model[i].stage[ii].valid = len(m.model[i].stage[ii].source) > 0
-			}
-		}
-	}
-
-	for _, s := range m.model {
-		if len(s.stage) == 0 {
-			return false
-		}
-		for _, n := range s.stage {
-			if !n.valid {
-				return false
-			}
-		}
-	}
-
-	return true
+	p.draft.measure()
 }
 
 func (p *project) save() {
 
-	if p.status == psNew {
-		p.id = app.s.lab.AddProject([][]lab.Node{})
-		// app.result.add(p)
+	if p.status == projectEdit {
+
+		if !p.validate() {
+			p.status = projectInvalid
+			app.v.edit.setInvalid(true)
+			go app.v.edit.hideInvalid()
+		} else if app.idle() {
+			p.status = projectActive
+		} else {
+			p.status = projectHolded
+		}
+
+		if p.model == nil {
+			app.s.list = append(app.s.list, p)
+		}
+
+		p.model = p.draft
+
 	}
 
-	if app.s.status == appRun {
-		p.status = psHolded
-	} else {
-		p.status = psActive
-	}
+}
 
-	if !p.validate() {
-		p.status = psInvalid
-		app.v.edit.setInvalid(true)
-		go app.v.edit.hideInvalid()
-	}
+func (p *project) setNodeSize(x, y, v int) {
 
-	p.m = p.n
+	p.draft.model[x].model[y].size = v
 
-	p.ed = false
+}
+
+func (p *project) getNodeSize(x, y int) int {
+
+	return p.draft.model[x].model[y].size
+}
+
+func (p *project) getModel() []*model {
+
+	return p.draft.model
+}
+
+func (p *project) getStage(x int) *model {
+
+	return p.draft.model[x]
+}
+
+func (p *project) getNode(pos position) *model {
+
+	return p.draft.model[pos.x].model[pos.y]
+}
+
+func (p *project) getSize() int {
+
+	return p.draft.size
+}
+
+func (p *project) getVolume() int {
+
+	return p.draft.volume
+}
+
+func (p *project) insertStage(index int) {
+
+	p.draft.insertStage(index)
+
+}
+
+func (p *project) deleteStage(index int) {
+
+	p.draft.deleteStage(index)
 
 }
 
@@ -157,7 +177,7 @@ func (ps projectStatus) text() string {
 
 	switch ps {
 	case 0:
-		return "new"
+		return "edit"
 	case 1:
 		return "active"
 	case 2:
@@ -169,31 +189,4 @@ func (ps projectStatus) text() string {
 	}
 
 	return ""
-}
-
-type projectUI struct {
-	selected bool
-}
-
-type projectStat struct {
-	size   int
-	volume int
-	gen    int
-	ev     int
-	age    int
-	best   string
-	goal   bool
-}
-
-func insertStage() {
-
-	app.v.edit.selectStageRight()
-	app.v.edit.draft.n.addStage(app.v.edit.cursor.x)
-
-}
-
-func deleteStage() {
-
-	app.v.edit.draft.n.removeStage(app.v.edit.cursor.x)
-
 }

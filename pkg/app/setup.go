@@ -16,11 +16,11 @@ type setupWidget struct {
 func (w *setupWidget) setListValue(key, value string) {
 
 	for i, v := range w.list {
-		if v.key == key {
+		if v.key == key && w.list[i].value != value {
 			w.list[i].value = value
+			w.mark()
 		}
 	}
-	w.mark()
 
 }
 
@@ -67,10 +67,10 @@ func (w *setupWidget) render() ([]string, error) {
 	width := x - w.width - 4
 
 	if w.cursor.y > w.offset.y+height-1 {
-		w.setOffset(position{0, w.cursor.y - height + 1})
+		w.setOffset(newPosition(0, w.cursor.y-height+1))
 	}
 	if w.cursor.y < w.offset.y {
-		w.setOffset(position{0, w.cursor.y})
+		w.setOffset(newPosition(0, w.cursor.y))
 	}
 
 	buf := make([]string, y-2)
@@ -115,7 +115,7 @@ func (w *setupWidget) moveDown(_ *gocui.Gui, _ *gocui.View) error {
 	if app.idle() {
 
 		if w.cursor.y < len(w.list)-1 {
-			w.setCursor(position{0, w.cursor.y + 1})
+			w.setCursor(newPosition(0, w.cursor.y+1))
 		}
 
 	} else {
@@ -124,10 +124,10 @@ func (w *setupWidget) moveDown(_ *gocui.Gui, _ *gocui.View) error {
 		yy := w.offset.y + int(math.Floor(float64(y)-4.0)/2.0)
 
 		if yy >= len(w.list)-1 {
-			w.setCursor(position{0, len(w.list) - 1})
+			w.setCursor(newPosition(0, len(w.list)-1))
 		} else {
-			w.setCursor(position{0, yy})
-			w.setOffset(position{0, w.offset.y + 1})
+			w.setCursor(newPosition(0, yy))
+			w.setOffset(newPosition(0, w.offset.y+1))
 		}
 
 	}
@@ -140,14 +140,14 @@ func (w *setupWidget) moveUp(_ *gocui.Gui, _ *gocui.View) error {
 	if app.idle() {
 
 		if w.cursor.y > 0 {
-			w.setCursor(position{0, w.cursor.y - 1})
+			w.setCursor(newPosition(0, w.cursor.y-1))
 		}
 
 	} else {
 
 		if w.offset.y > 0 {
-			w.setCursor(position{0, w.offset.y - 1})
-			w.setOffset(position{0, w.offset.y})
+			w.setCursor(newPosition(0, w.offset.y-1))
+			w.setOffset(newPosition(0, w.offset.y))
 		}
 
 	}
