@@ -29,14 +29,48 @@ func (c *helpBox) render() ([]string, error) {
 	c.widget.view.Frame = true
 	c.widget.view.Title = " Help "
 
-	t := ""
-	for i := 0; i <= 7; i++ {
-		for _, j := range []int{1, 4, 7} {
-			t += fmt.Sprintf("\033[3%d;%dm#\033[0m", i, j)
-		}
+	buf := []string{}
+	buf = append(buf, " ")
+	buf = append(buf, fmt.Sprintf(" %s Show/hide Help", c.button("F1")))
+	buf = append(buf, fmt.Sprintf(" %s Show Setup", c.button("F2")))
+	buf = append(buf, fmt.Sprintf(" %s Show Result", c.button("F3")))
+	buf = append(buf, fmt.Sprintf(" %s Show Edit", c.button("F4")))
+	buf = append(buf, fmt.Sprintf(" %s Quit", c.button("^Q")))
+	buf = append(buf, " ")
+
+	switch app.v.keybar.tab {
+
+	case tabSetup:
+		buf = append(buf, fmt.Sprintf(" %s Change value", c.button("Enter")))
+		buf = append(buf, " ")
+		buf = append(buf, fmt.Sprintf(" %s Move down/up", c.button("↓↑")))
+
+	case tabResult:
+		buf = append(buf, fmt.Sprintf(" %s Toggle run state", c.button("Enter")))
+		buf = append(buf, " ")
+		buf = append(buf, fmt.Sprintf(" %s Move down/up     %s Show/hide inactive projects", c.button("↓↑"), c.button("Tab")))
+		buf = append(buf, " ")
+		buf = append(buf, fmt.Sprintf(" %s New project      %s Hold project", c.button("^N"), c.button("^H")))
+		buf = append(buf, fmt.Sprintf(" %s Edit project     %s Activate project", c.button("^E"), c.button("^A")))
+		buf = append(buf, fmt.Sprintf(" %s Dub project      %s Terminate project", c.button("^D"), c.button("^T")))
+		buf = append(buf, " ")
+		buf = append(buf, fmt.Sprintf(" %s  Select/deselect project", c.button("Space")))
+		buf = append(buf, fmt.Sprintf(" %s Select/deselect all projects", c.button("^Space")))
+
+	case tabEdit:
+		buf = append(buf, fmt.Sprintf(" %s New project          %s Insert stage", c.button("^N"), c.button("Insert")))
+		buf = append(buf, fmt.Sprintf(" %s Edit project         %s Delete stage", c.button("^E"), c.button("Delete")))
+		buf = append(buf, fmt.Sprintf(" %s Dub project          %s  Insert node", c.button("^D"), c.button("Enter")))
+		buf = append(buf, fmt.Sprintf(" %s Save project         %s Edit node", c.button("^S"), c.button("^Space")))
+		buf = append(buf, fmt.Sprintf(" %s Validate project     %s     Delete node", c.button("^V"), c.button("<x")))
+		buf = append(buf, fmt.Sprintf("                         %s  Edit link", c.button("Space")))
+		buf = append(buf, " ")
+		buf = append(buf, fmt.Sprintf(" %s  Cancel links/edits", c.button("Esc")))
+		buf = append(buf, fmt.Sprintf(" %s Move cursor/link down/up/left/right", c.button("↓↑←→")))
+
 	}
 
-	return []string{t}, nil
+	return buf, nil
 }
 
 func (c *helpBox) keybinding() error {
@@ -55,6 +89,11 @@ func (c *helpBox) close(_ *gocui.Gui, _ *gocui.View) error {
 	}
 
 	return app.closeModal()
+}
+
+func (c *helpBox) button(caption string) string {
+
+	return fmt.Sprintf("\033[37;7m%s\033[0m", caption)
 }
 
 type setupItemBox struct {
