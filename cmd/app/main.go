@@ -13,6 +13,6 @@ func main() {
 
 	flag.Parse()
 
-	app.Run(&lib.Example1{}, *cfgFile)
+	app.Run(&lib.ExampleSimple{}, *cfgFile)
 
 }

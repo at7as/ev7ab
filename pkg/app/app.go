@@ -1,7 +1,15 @@
 package app
 
 import (
+	"bytes"
+	"compress/zlib"
+	"encoding/json"
+	"io"
 	"log"
+	"os"
+	"slices"
+	"strconv"
+	"time"
 
 	"github.com/at7as/ev7ab/pkg/lab"
 	"github.com/jroimartin/gocui"
@@ -18,13 +26,16 @@ type application struct {
 }
 
 type config struct {
-	file string
+	cfgfile, labfile string
+	in, out          int
 }
 
 type state struct {
 	status applicationStatus
 	lab    *lab.Lab
-	list   []*project
+	prod   lab.Producer
+	setup  *dict
+	ev     []*project
 }
 
 type view struct {
@@ -44,19 +55,26 @@ const (
 	appWait
 )
 
-func newApplication(prod lab.Producer, cfgFile string) *application {
+func createApplication(prod lab.Producer, cfgFile string) {
 
-	c := config{
-		file: cfgFile,
+	app = &application{}
+
+	app.c = config{
+		cfgfile: cfgFile,
+		labfile: "./ev.lab",
+		in:      2,
+		out:     2,
 	}
 
-	s := state{
+	app.s = state{
 		status: appIdle,
+		prod:   prod,
 		lab:    lab.New(prod),
-		list:   make([]*project, 0),
+		setup:  newDict(defaultSetup),
+		ev:     make([]*project, 0),
 	}
 
-	v := view{
+	app.v = view{
 		keybar:    newKeybarWidget(),
 		statusbar: newStatusbarWidget(),
 		setup:     newSetupWidget(),
@@ -64,48 +82,47 @@ func newApplication(prod lab.Producer, cfgFile string) *application {
 		edit:      newEditWidget(),
 	}
 
-	return &application{c, s, v}
 }
 
 func (a *application) keybinding() error {
 
-	if err = gui.SetKeybinding("", gocui.KeyCtrlQ, gocui.ModNone, app.quit); err != nil {
+	if err = gui.SetKeybinding("", gocui.KeyCtrlQ, gocui.ModNone, a.quit); err != nil {
 		return err
 	}
 
-	if err = gui.SetKeybinding("", gocui.KeyF1, gocui.ModNone, app.toggleHelp); err != nil {
+	if err = gui.SetKeybinding("", gocui.KeyF1, gocui.ModNone, a.toggleHelp); err != nil {
 		return err
 	}
 
-	if err = gui.SetKeybinding("", gocui.KeyF2, gocui.ModNone, app.showSetup); err != nil {
+	if err = gui.SetKeybinding("", gocui.KeyF2, gocui.ModNone, a.showSetup); err != nil {
 		return err
 	}
 
-	if err = gui.SetKeybinding("", gocui.KeyF3, gocui.ModNone, app.showResult); err != nil {
+	if err = gui.SetKeybinding("", gocui.KeyF3, gocui.ModNone, a.showResult); err != nil {
 		return err
 	}
 
-	if err = gui.SetKeybinding("", gocui.KeyF4, gocui.ModNone, app.showEdit); err != nil {
+	if err = gui.SetKeybinding("", gocui.KeyF4, gocui.ModNone, a.showEdit); err != nil {
 		return err
 	}
 
-	if err = app.v.keybar.keybinding(); err != nil {
+	if err = a.v.keybar.keybinding(); err != nil {
 		return err
 	}
 
-	if err = app.v.statusbar.keybinding(); err != nil {
+	if err = a.v.statusbar.keybinding(); err != nil {
 		return err
 	}
 
-	if err = app.v.setup.keybinding(); err != nil {
+	if err = a.v.setup.keybinding(); err != nil {
 		return err
 	}
 
-	if err = app.v.result.keybinding(); err != nil {
+	if err = a.v.result.keybinding(); err != nil {
 		return err
 	}
 
-	if err = app.v.edit.keybinding(); err != nil {
+	if err = a.v.edit.keybinding(); err != nil {
 		return err
 	}
 
@@ -119,26 +136,26 @@ func (a *application) quit(_ *gocui.Gui, _ *gocui.View) error {
 
 func (a *application) toggleHelp(_ *gocui.Gui, _ *gocui.View) error {
 
-	if app.v.modal == nil {
+	if a.v.modal == nil {
 
-		if err = app.openModal(newHelpBox()); err != nil {
+		if err = a.openModal(newHelpBox()); err != nil {
 			return err
 		}
 
 	} else {
 
-		open := app.v.modal.name != "help"
+		open := a.v.modal.name != "help"
 
-		if err = app.setTabCurrent(app.v.keybar.tab); err != nil {
+		if err = a.setTabCurrent(a.v.keybar.tab); err != nil {
 			return err
 		}
 
-		if err = app.closeModal(); err != nil {
+		if err = a.closeModal(); err != nil {
 			return err
 		}
 
 		if open {
-			if err = app.openModal(newHelpBox()); err != nil {
+			if err = a.openModal(newHelpBox()); err != nil {
 				return err
 			}
 		}
@@ -150,32 +167,32 @@ func (a *application) toggleHelp(_ *gocui.Gui, _ *gocui.View) error {
 
 func (a *application) showSetup(_ *gocui.Gui, _ *gocui.View) error {
 
-	if err = app.closeModal(); err != nil {
+	if err = a.closeModal(); err != nil {
 		return err
 	}
-	app.v.keybar.setTab(tabSetup)
+	a.v.keybar.setTab(tabSetup)
 
-	return app.setTabCurrent(tabSetup)
+	return a.setTabCurrent(tabSetup)
 }
 
 func (a *application) showResult(_ *gocui.Gui, _ *gocui.View) error {
 
-	if err = app.closeModal(); err != nil {
+	if err = a.closeModal(); err != nil {
 		return err
 	}
-	app.v.keybar.setTab(tabResult)
+	a.v.keybar.setTab(tabResult)
 
-	return app.setTabCurrent(tabResult)
+	return a.setTabCurrent(tabResult)
 }
 
 func (a *application) showEdit(_ *gocui.Gui, _ *gocui.View) error {
 
-	if err = app.closeModal(); err != nil {
+	if err = a.closeModal(); err != nil {
 		return err
 	}
-	app.v.keybar.setTab(tabEdit)
+	a.v.keybar.setTab(tabEdit)
 
-	return app.setTabCurrent(tabEdit)
+	return a.setTabCurrent(tabEdit)
 }
 
 func (a *application) idle() bool {
@@ -209,20 +226,20 @@ func (a *application) setTabCurrent(tab keybarTab) error {
 
 func (a *application) openModal(w *widget) error {
 
-	if app.v.modal != nil {
-		app.v.modal.clean()
+	if a.v.modal != nil {
+		a.v.modal.clean()
 	}
-	app.v.modal = w
+	a.v.modal = w
 
-	if err = app.v.modal.Layout(gui); err != nil {
+	if err = a.v.modal.Layout(gui); err != nil {
 		return err
 	}
 
-	if err = app.v.modal.keybinding(); err != nil {
+	if err = a.v.modal.keybinding(); err != nil {
 		return err
 	}
 
-	if err = app.setCurrent(w.name); err != nil {
+	if err = a.setCurrent(w.name); err != nil {
 		return err
 	}
 
@@ -233,43 +250,188 @@ func (a *application) closeModal() error {
 
 	gui.Cursor = false
 
-	if app.v.modal != nil {
-		if err = app.v.modal.clean(); err != nil {
+	if a.v.modal != nil {
+		if err = a.v.modal.clean(); err != nil {
 			return err
 		}
-		app.v.modal = nil
+		a.v.modal = nil
 	}
 
 	return nil
 }
 
-func (a *application) save() error {
+func (a *application) loadConfig() error {
 
-	// s := &State{}
-	// app.state.ID = app.lab.s.id
-	// s.Setup = make([][2]string, len(app.setup.l))
-	// for i, v := range app.setup.l {
-	// 	s.Setup[i][0] = v.key
-	// 	s.Setup[i][1] = v.value
-	// }
-	// prepare result
+	f, err := os.Open(a.c.cfgfile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 
-	// save to file
+	b, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
+
+	var cfg map[string]json.RawMessage
+	if err = json.Unmarshal(b, &cfg); err != nil {
+		return err
+	}
+
+	for k, v := range cfg {
+		if k == "app" {
+			var obj map[string]string
+			if err = json.Unmarshal(v, &obj); err != nil {
+				return err
+			}
+			for kk, vv := range obj {
+				switch kk {
+				case "LabFile":
+					a.s.setup.set(kk, vv)
+					a.c.labfile = vv
+				case "In":
+					a.s.setup.set(kk, vv)
+					a.c.in, _ = strconv.Atoi(vv)
+				case "Out":
+					a.s.setup.set(kk, vv)
+					a.c.out, _ = strconv.Atoi(vv)
+				}
+			}
+		}
+		if k == "prod" {
+			var obj map[string]string
+			if err = json.Unmarshal(v, &obj); err != nil {
+				return err
+			}
+			for kk, vv := range obj {
+				a.s.setup.set(kk, vv)
+			}
+		}
+	}
 
 	return nil
 }
 
-func (a *application) load() error {
+func (a *application) loadProd() error {
 
-	// load to state
+	d := make([]string, len(defaultSetup))
+	for i, v := range defaultSetup {
+		d[i] = v.key
+	}
 
-	// app.id = app.state.ID
-	// app.setup = newItemList(app.state.Setup)
-	// app.lab.Setup(app.state.Setup)
+	s := make(map[string]string)
+	for _, item := range a.s.setup.l {
+		if !slices.Contains(d, item.key) {
+			s[item.key] = item.value
+		}
+	}
 
-	// prepare result
+	return a.s.prod.Load(s)
+}
 
-	return nil
+func (a *application) saveLab() {
+
+	b, err := a.s.lab.Export()
+	if err != nil {
+		a.wait(err.Error())
+		return
+	}
+
+	buf := bytes.Buffer{}
+	w, err := zlib.NewWriterLevel(&buf, zlib.BestCompression)
+	if err != nil {
+		a.wait(err.Error())
+		return
+	}
+	w.Write(b)
+	w.Close()
+
+	if err = os.WriteFile(a.c.labfile, buf.Bytes(), 0644); err != nil {
+		a.wait(err.Error())
+		return
+	}
+
+	a.apply(appIdle, "")
+	a.v.statusbar.mark()
+	a.update(nil)
+
+}
+
+func (a *application) loadLab() {
+
+	f, err := os.Open(a.c.labfile)
+	if err != nil {
+		a.wait(err.Error())
+		return
+	}
+	defer f.Close()
+
+	d, err := zlib.NewReader(f)
+	if err != nil {
+		a.wait(err.Error())
+		return
+	}
+	defer d.Close()
+
+	b, err := io.ReadAll(d)
+	if err != nil {
+		a.wait(err.Error())
+		return
+	}
+
+	if err = a.s.lab.Import(b); err != nil {
+		a.wait(err.Error())
+		return
+	}
+
+	labcfg := a.s.lab.GetConfig()
+	a.s.setup.set("Size", strconv.Itoa(labcfg.Size))
+	a.s.setup.set("Aggr", labcfg.Aggr)
+	a.s.setup.set("Proc", labcfg.Proc)
+	a.s.setup.set("Goal", strconv.FormatBool(labcfg.Goal))
+	a.s.setup.set("Duel", strconv.FormatBool(labcfg.Duel))
+
+	a.importProjects()
+
+	a.apply(appIdle, "")
+	a.v.statusbar.mark()
+	a.v.setup.mark()
+	a.v.result.mark()
+	a.v.edit.setDraft(nil)
+	a.update(nil)
+
+}
+
+func (a *application) importProjects() {
+
+	list := a.s.lab.GetProjects()
+	a.s.ev = make([]*project, len(list))
+
+	for i, id := range list {
+
+		status := projectActive
+		if !a.s.lab.ProjectStatus(id) {
+			status = projectHolded
+		}
+
+		p := &project{
+			id:       id,
+			status:   status,
+			stat:     stat{},
+			model:    createProjectModel(a.s.lab.ProjectLayout(id)),
+			draft:    nil,
+			selected: false,
+		}
+
+		p.refine()
+		p.model.measure()
+		p.stat.size = p.model.size
+		p.stat.volume = p.model.volume
+
+		a.s.ev[i] = p
+
+	}
+
 }
 
 func (a *application) apply(s applicationStatus, t string) {
@@ -277,6 +439,33 @@ func (a *application) apply(s applicationStatus, t string) {
 	a.s.status = s
 	a.v.statusbar.setColor(s)
 	a.v.statusbar.setText(t)
+
+}
+
+func (a *application) wait(t string) {
+
+	a.s.status = appWait
+	a.v.statusbar.setColor(appWait)
+	a.v.statusbar.setText(t)
+	a.update(nil)
+
+	go func() {
+		time.Sleep(2 * time.Second)
+		a.apply(appIdle, "")
+		a.update(nil)
+	}()
+
+}
+
+func (a *application) update(f func(g *gocui.Gui) error) {
+
+	if f != nil {
+		gui.Update(f)
+	} else {
+		gui.Update(func(g *gocui.Gui) error {
+			return nil
+		})
+	}
 
 }
 
@@ -288,7 +477,13 @@ func Run(prod lab.Producer, appConfigFile string) {
 	}
 	defer gui.Close()
 
-	app = newApplication(prod, appConfigFile)
+	createApplication(prod, appConfigFile)
+	if err = app.loadConfig(); err != nil {
+		log.Panicln(err)
+	}
+	if err = app.loadProd(); err != nil {
+		log.Panicln(err)
+	}
 
 	gui.SetManager(
 		app.v.keybar.widget,
@@ -298,11 +493,15 @@ func Run(prod lab.Producer, appConfigFile string) {
 		app.v.edit.widget,
 	)
 
-	app.keybinding()
+	if err = app.keybinding(); err != nil {
+		log.Panicln(err)
+	}
 
 	gui.InputEsc = true
 
-	gui.Update(func(_ *gocui.Gui) error { return app.showSetup(nil, nil) })
+	app.update(func(g *gocui.Gui) error {
+		return app.showSetup(nil, nil)
+	})
 
 	if err = gui.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)

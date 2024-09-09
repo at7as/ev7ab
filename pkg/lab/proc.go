@@ -103,3 +103,10 @@ var procMap map[string]Processor = map[string]Processor{
 	"sinusoid": sinusoidProc,
 	"gaussian": gaussianProc,
 }
+
+// SetProcessor ...
+func SetProcessor(code string, proc Processor) {
+
+	procMap[code] = proc
+
+}

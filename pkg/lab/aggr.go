@@ -36,3 +36,10 @@ var aggrMap map[string]Aggregator = map[string]Aggregator{
 	"min": minAggr,
 	"max": maxAggr,
 }
+
+// SetAggregator ...
+func SetAggregator(code string, aggr Aggregator) {
+
+	aggrMap[code] = aggr
+
+}

@@ -3,6 +3,7 @@ package lab
 // Producer ...
 type Producer interface {
 	Load(map[string]string) error
+	Setup(string, string) error
 	Produce(Next, Next) []float64
 	Compare([]float64, []float64) bool
 	Validate([]float64) bool

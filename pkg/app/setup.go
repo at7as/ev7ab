@@ -9,43 +9,26 @@ import (
 
 type setupWidget struct {
 	*widget
-	list  []kv
 	width int
 }
 
 func (w *setupWidget) setListValue(key, value string) {
 
-	for i, v := range w.list {
-		if v.key == key && w.list[i].value != value {
-			w.list[i].value = value
-			w.mark()
-		}
+	if app.s.setup.get(key) != value {
+		app.s.setup.set(key, value)
+		w.mark()
 	}
 
 }
 
-// load from file
 func newSetupWidget() *setupWidget {
 
 	w := &setupWidget{
-		list: []kv{
-			{"LabFile", "./ev.lab"},
-			{"Size", "1000"},
-			{"Aggr", "avg"},
-			{"Proc", "linear"},
-			{"Goal", "false"},
-			{"Duel", "false"},
-			{"In", "2"},
-			{"Out", "2"},
-			{"InputFile", ""},
-			{"Target", ""},
-			{"Limit", ""},
-		},
 		width: 0,
 	}
 	w.widget = newWidget(w, "setup")
 
-	for _, v := range w.list {
+	for _, v := range app.s.setup.l {
 		w.width = max(len(v.key), w.width)
 	}
 
@@ -76,8 +59,8 @@ func (w *setupWidget) render() ([]string, error) {
 	buf := make([]string, y-2)
 
 	buf[0] = " "
-	for i := range min(len(w.list), height) {
-		item := w.list[w.offset.y+i]
+	for i := range min(len(app.s.setup.l), height) {
+		item := app.s.setup.l[w.offset.y+i]
 		buf[1+i*2+0] = fmt.Sprintf(" \033[3%sm%s  %s\033[0m ", w.focused(w.offset.y+i), space(item.key, 0, w.width-len(item.key)), item.value[:min(len(item.value), width)])
 		buf[1+i*2+1] = " "
 	}
@@ -86,7 +69,7 @@ func (w *setupWidget) render() ([]string, error) {
 		buf[0] = space("▲", x-1, 0)
 	}
 
-	if len(w.list)-w.offset.y > height {
+	if len(app.s.setup.l)-w.offset.y > height {
 		buf[y-3] = space("▼", x-1, 0)
 	}
 
@@ -94,6 +77,14 @@ func (w *setupWidget) render() ([]string, error) {
 }
 
 func (w *setupWidget) keybinding() error {
+
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlS, gocui.ModNone, w.saveLab); err != nil {
+		return err
+	}
+
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlL, gocui.ModNone, w.loadLab); err != nil {
+		return err
+	}
 
 	if err = gui.SetKeybinding(w.name, gocui.KeyArrowDown, gocui.ModNone, w.moveDown); err != nil {
 		return err
@@ -110,11 +101,35 @@ func (w *setupWidget) keybinding() error {
 	return nil
 }
 
+func (w *setupWidget) saveLab(_ *gocui.Gui, _ *gocui.View) error {
+
+	if !app.idle() {
+		return nil
+	}
+
+	app.apply(appWait, "Saving lab data...")
+	go app.saveLab()
+
+	return nil
+}
+
+func (w *setupWidget) loadLab(_ *gocui.Gui, _ *gocui.View) error {
+
+	if !app.idle() {
+		return nil
+	}
+
+	app.apply(appWait, "Loading lab data...")
+	go app.loadLab()
+
+	return nil
+}
+
 func (w *setupWidget) moveDown(_ *gocui.Gui, _ *gocui.View) error {
 
 	if app.idle() {
 
-		if w.cursor.y < len(w.list)-1 {
+		if w.cursor.y < len(app.s.setup.l)-1 {
 			w.setCursor(newPosition(0, w.cursor.y+1))
 		}
 
@@ -123,8 +138,8 @@ func (w *setupWidget) moveDown(_ *gocui.Gui, _ *gocui.View) error {
 		_, y := gui.Size()
 		yy := w.offset.y + int(math.Floor(float64(y)-4.0)/2.0)
 
-		if yy >= len(w.list)-1 {
-			w.setCursor(newPosition(0, len(w.list)-1))
+		if yy >= len(app.s.setup.l)-1 {
+			w.setCursor(newPosition(0, len(app.s.setup.l)-1))
 		} else {
 			w.setCursor(newPosition(0, yy))
 			w.setOffset(newPosition(0, w.offset.y+1))
@@ -157,7 +172,7 @@ func (w *setupWidget) moveUp(_ *gocui.Gui, _ *gocui.View) error {
 
 func (w *setupWidget) openSetupItem(_ *gocui.Gui, _ *gocui.View) error {
 
-	return app.openModal(newSetupItemBox(w.list[w.cursor.y].key, w.list[w.cursor.y].value))
+	return app.openModal(newSetupItemBox(app.s.setup.l[w.cursor.y].key, app.s.setup.l[w.cursor.y].value))
 }
 
 func (w *setupWidget) focused(y int) string {

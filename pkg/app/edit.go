@@ -173,63 +173,63 @@ func (w *editWidget) render() ([]string, error) {
 
 func (w *editWidget) keybinding() error {
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlN, gocui.ModNone, w.newProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlN, gocui.ModNone, w.newProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlE, gocui.ModNone, w.editProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlE, gocui.ModNone, w.editProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlD, gocui.ModNone, w.dubProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlD, gocui.ModNone, w.dubProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlS, gocui.ModNone, w.saveProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlS, gocui.ModNone, w.saveProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlV, gocui.ModNone, w.validateProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlV, gocui.ModNone, w.validateProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyArrowLeft, gocui.ModNone, w.keyArrowLeft); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyArrowLeft, gocui.ModNone, w.keyArrowLeft); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyArrowRight, gocui.ModNone, w.keyArrowRight); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyArrowRight, gocui.ModNone, w.keyArrowRight); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyArrowUp, gocui.ModNone, w.keyArrowUp); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyArrowUp, gocui.ModNone, w.keyArrowUp); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyArrowDown, gocui.ModNone, w.keyArrowDown); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyArrowDown, gocui.ModNone, w.keyArrowDown); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyInsert, gocui.ModNone, w.insertStage); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyInsert, gocui.ModNone, w.insertStage); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyDelete, gocui.ModNone, w.deleteStage); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyDelete, gocui.ModNone, w.deleteStage); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyEnter, gocui.ModNone, w.insertNode); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyEnter, gocui.ModNone, w.insertNode); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeySpace, gocui.ModNone, w.editNodeSource); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeySpace, gocui.ModNone, w.editNodeSource); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlSpace, gocui.ModNone, w.editNode); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlSpace, gocui.ModNone, w.editNode); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyBackspace, gocui.ModNone, w.deleteNode); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyBackspace, gocui.ModNone, w.deleteNode); err != nil {
 		return err
 	}
 
@@ -477,6 +477,7 @@ func (w *editWidget) cancel(_ *gocui.Gui, _ *gocui.View) error {
 			if w.draft.model != nil {
 				w.draft.cancel()
 				w.mark()
+				app.v.result.mark()
 				return nil
 			}
 			w.draft = nil
@@ -492,9 +493,7 @@ func (w *editWidget) hideInvalid() {
 
 	time.Sleep(1 * time.Second)
 	w.setInvalid(false)
-	gui.Update(func(g *gocui.Gui) error {
-		return nil
-	})
+	app.update(nil)
 
 }
 
@@ -505,12 +504,7 @@ func (w *editWidget) headerTop() string {
 		d = " \033[32;1m*\033[0m"
 	}
 
-	o := ""
-	if w.draft.origin != nil {
-		o = fmt.Sprintf(" \033[30;1m[%v]\033[0m", w.draft.origin.id)
-	}
-
-	return fmt.Sprintf(" %s  %s  ## %v%s", d, w.draft.status.text(), w.draft.id, o)
+	return fmt.Sprintf(" %s  %s  ## %v", d, w.draft.status.text(), w.draft.id)
 }
 
 func (w *editWidget) headerBottom() string {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/jroimartin/gocui"
 )
@@ -58,9 +59,14 @@ func (w *resultWidget) getSelected() bool {
 
 func (w *resultWidget) updateShow(height int) {
 
-	l := make([]*project, 0, len(app.s.list))
-	for _, p := range app.s.list {
-		if (!w.holded && p.status == projectActive) || (w.holded && p.status != projectTerminated) {
+	l := make([]*project, 0, len(app.s.ev))
+	for _, p := range app.s.ev {
+		if ((!w.holded && p.status == projectActive) || (w.holded && p.status != projectTerminated)) && p.goal {
+			l = append(l, p)
+		}
+	}
+	for _, p := range app.s.ev {
+		if ((!w.holded && p.status == projectActive) || (w.holded && p.status != projectTerminated)) && !p.goal {
 			l = append(l, p)
 		}
 	}
@@ -124,7 +130,6 @@ func (w *resultWidget) transform(x int, y int) (int, int, int, int) {
 	return -1, 0, x, y - 1
 }
 
-// top to result when project is goal
 func (w *resultWidget) render() ([]string, error) {
 
 	w.widget.view.Frame = false
@@ -133,8 +138,8 @@ func (w *resultWidget) render() ([]string, error) {
 
 	height := int(math.Floor((float64(y) - 6.0) / 2.0))
 
-	w.updateWidth()
 	w.updateShow(height)
+	w.updateWidth()
 
 	if w.cursor.y > w.offset.y+height-1 {
 		w.setOffset(newPosition(0, w.cursor.y-height+1))
@@ -154,51 +159,59 @@ func (w *resultWidget) render() ([]string, error) {
 
 func (w *resultWidget) keybinding() error {
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyEnter, gocui.ModNone, w.toggleRunApp); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyEnter, gocui.ModNone, w.toggleRunApp); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyArrowDown, gocui.ModNone, w.moveDown); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyArrowDown, gocui.ModNone, w.moveDown); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyArrowUp, gocui.ModNone, w.moveUp); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyArrowUp, gocui.ModNone, w.moveUp); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlN, gocui.ModNone, w.newProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlN, gocui.ModNone, w.newProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlE, gocui.ModNone, w.editProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlE, gocui.ModNone, w.editProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlD, gocui.ModNone, w.dubProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlD, gocui.ModNone, w.dubProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeySpace, gocui.ModNone, w.selectProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeySpace, gocui.ModNone, w.selectProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlSpace, gocui.ModNone, w.selectAllProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlSpace, gocui.ModNone, w.selectAllProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlH, gocui.ModNone, w.holdProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlH, gocui.ModNone, w.holdProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlA, gocui.ModNone, w.activateProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlA, gocui.ModNone, w.activateProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyCtrlT, gocui.ModNone, w.terminateProject); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlT, gocui.ModNone, w.terminateProject); err != nil {
 		return err
 	}
 
-	if err := gui.SetKeybinding(w.name, gocui.KeyTab, gocui.ModNone, w.toggleHolded); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyTab, gocui.ModNone, w.toggleHolded); err != nil {
+		return err
+	}
+
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlS, gocui.ModNone, w.saveLab); err != nil {
+		return err
+	}
+
+	if err = gui.SetKeybinding(w.name, gocui.KeyCtrlL, gocui.ModNone, w.loadLab); err != nil {
 		return err
 	}
 
@@ -214,11 +227,15 @@ func (w *resultWidget) toggleRunApp(_ *gocui.Gui, _ *gocui.View) error {
 		}
 		app.apply(appRun, "Run...")
 		w.mark()
+		app.s.lab.Run()
+		go w.checkStats()
 
-	} else {
+	} else if app.s.status == appRun {
 
-		app.apply(appIdle, "")
+		app.apply(appWait, "Wait for stop examine")
 		w.mark()
+		app.s.lab.Stop()
+		go w.checkStatus()
 
 	}
 
@@ -344,14 +361,14 @@ func (w *resultWidget) holdProject(_ *gocui.Gui, _ *gocui.View) error {
 	if w.getSelected() {
 		for _, p := range w.show {
 			if p.status == projectActive && p.selected {
-				p.status = projectHolded
+				p.setStatus(projectHolded)
 				w.mark()
 			}
 		}
 	} else {
 		p := w.getFocused()
 		if p != nil && p.status == projectActive {
-			p.status = projectHolded
+			p.setStatus(projectHolded)
 			w.mark()
 		}
 	}
@@ -360,6 +377,7 @@ func (w *resultWidget) holdProject(_ *gocui.Gui, _ *gocui.View) error {
 		for _, p := range w.show {
 			p.selected = false
 		}
+		w.mark()
 	}
 
 	return nil
@@ -378,14 +396,14 @@ func (w *resultWidget) activateProject(_ *gocui.Gui, _ *gocui.View) error {
 	if w.getSelected() {
 		for _, p := range w.show {
 			if p.status == projectHolded && p.selected {
-				p.status = projectActive
+				p.setStatus(projectActive)
 				w.mark()
 			}
 		}
 	} else {
 		p := w.getFocused()
 		if p != nil && p.status == projectHolded {
-			p.status = projectActive
+			p.setStatus(projectActive)
 			w.mark()
 		}
 	}
@@ -403,7 +421,7 @@ func (w *resultWidget) terminateProject(_ *gocui.Gui, _ *gocui.View) error {
 		for _, p := range w.show {
 			if p.selected {
 				p.selected = false
-				p.status = projectTerminated
+				p.setStatus(projectTerminated)
 				w.mark()
 			}
 		}
@@ -411,7 +429,7 @@ func (w *resultWidget) terminateProject(_ *gocui.Gui, _ *gocui.View) error {
 		p := w.getFocused()
 		if p != nil {
 			p.selected = false
-			p.status = projectTerminated
+			p.setStatus(projectTerminated)
 			w.mark()
 		}
 	}
@@ -420,6 +438,7 @@ func (w *resultWidget) terminateProject(_ *gocui.Gui, _ *gocui.View) error {
 		for _, p := range w.show {
 			p.selected = false
 		}
+		w.mark()
 	}
 
 	return nil
@@ -434,6 +453,65 @@ func (w *resultWidget) toggleHolded(_ *gocui.Gui, _ *gocui.View) error {
 	w.setHolded(!w.holded)
 
 	return nil
+}
+
+func (w *resultWidget) saveLab(_ *gocui.Gui, _ *gocui.View) error {
+
+	if !app.idle() {
+		return nil
+	}
+
+	app.apply(appWait, "Saving lab data...")
+	go app.saveLab()
+
+	return nil
+}
+
+func (w *resultWidget) loadLab(_ *gocui.Gui, _ *gocui.View) error {
+
+	if !app.idle() {
+		return nil
+	}
+
+	app.apply(appWait, "Loading lab data...")
+	go app.loadLab()
+
+	return nil
+}
+
+func (w *resultWidget) checkStatus() {
+
+	time.Sleep(1 * time.Second)
+
+	if !app.s.lab.GetExec() {
+		app.apply(appIdle, "")
+		w.mark()
+		app.update(nil)
+	} else {
+		go w.checkStatus()
+	}
+
+}
+
+func (w *resultWidget) checkStats() {
+
+	time.Sleep(1 * time.Second)
+
+	if app.s.lab.GetExec() {
+		go w.checkStats()
+	} else {
+		w.toggleRunApp(nil, nil)
+	}
+
+	for _, p := range app.s.ev {
+		if p.status != projectTerminated {
+			p.refine()
+		}
+	}
+
+	w.mark()
+	app.update(nil)
+
 }
 
 func (w *resultWidget) header() string {

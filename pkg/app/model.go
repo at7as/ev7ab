@@ -2,6 +2,8 @@ package app
 
 import (
 	"slices"
+
+	"github.com/at7as/ev7ab/pkg/lab"
 )
 
 type model struct {
@@ -38,6 +40,24 @@ func newProjectModel(o *project, in, out int) *model {
 		m.model[1].addModel(newNode(out, []position{{0, 0}}))
 	}
 	m.measure()
+
+	return m
+}
+
+func createProjectModel(layout [][]lab.Node) *model {
+
+	m := newModel(len(layout))
+	for i := range len(layout) {
+		s := newModel(len(layout[i]))
+		for ii := range len(layout[i]) {
+			n := newNode(layout[i][ii].Out, nil)
+			for _, pos := range layout[i][ii].Src {
+				n.source = append(n.source, newPosition(pos[0], pos[1]))
+			}
+			s.addModel(n)
+		}
+		m.addModel(s)
+	}
 
 	return m
 }
@@ -188,4 +208,22 @@ func (m *model) deleteStage(index int) {
 		}
 	}
 
+}
+
+func (m *model) convert() [][]lab.Node {
+
+	layout := make([][]lab.Node, len(m.model))
+
+	for i, s := range m.model {
+		layout[i] = make([]lab.Node, len(s.model))
+		for ii, n := range s.model {
+			src := make([][2]int, len(n.source))
+			for iii, pos := range n.source {
+				src[iii] = [2]int{pos.x, pos.y}
+			}
+			layout[i][ii] = lab.Node{Src: src, Out: n.size}
+		}
+	}
+
+	return layout
 }

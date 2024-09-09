@@ -88,54 +88,81 @@ func (l *Lab) Setup(c Config) error {
 	return nil
 }
 
-// Load ...
-func (l *Lab) Load(s map[string]string) error {
+// GetConfig ...
+func (l *Lab) GetConfig() Config {
 
-	return l.prod.Load(s)
+	return l.c
 }
 
-// SetAggregator ...
-func (l *Lab) SetAggregator(code string, aggr Aggregator) error {
+// GetExec ...
+func (l *Lab) GetExec() bool {
 
-	aggrMap[code] = aggr
-	l.c.Aggr = code
-	return l.Setup(l.c)
+	return l.s.exec
 }
 
-// SetProcessor ...
-func (l *Lab) SetProcessor(code string, proc Processor) error {
+// GetProjects ...
+func (l *Lab) GetProjects() []int {
 
-	procMap[code] = proc
-	l.c.Proc = code
-	return l.Setup(l.c)
+	list := make([]int, 0, len(l.s.ev))
+	for id := range l.s.ev {
+		list = append(list, id)
+	}
+
+	return list
 }
 
-// AddProject ...
-func (l *Lab) AddProject(layout [][]Node) int {
+// ProjectAdd ...
+func (l *Lab) ProjectAdd(layout [][]Node) int {
 
-	l.SetProject(l.s.id, layout)
+	l.ProjectSet(l.s.id, layout)
 	l.s.id++
 
 	return l.s.id - 1
 }
 
-// SetProject ...
-func (l *Lab) SetProject(id int, layout [][]Node) {
+// ProjectSet ...
+func (l *Lab) ProjectSet(id int, layout [][]Node) {
 
 	l.s.ev[id] = newProject(l, id, layout)
 
 }
 
-// StatProject ...
-func (l *Lab) StatProject(id int) (int, int, int, []float64, bool) {
+// ProjectStatus ...
+func (l *Lab) ProjectStatus(id int) bool {
+
+	return l.s.ev[id].active
+}
+
+// ProjectStat ...
+func (l *Lab) ProjectStat(id int) (int, int, int, string, bool) {
 
 	return l.s.ev[id].stat()
 }
 
-// DelProject ...
-func (l *Lab) DelProject(id int) {
+// ProjectLayout ...
+func (l *Lab) ProjectLayout(id int) [][]Node {
+
+	return l.s.ev[id].layout
+}
+
+// ProjectDelete ...
+func (l *Lab) ProjectDelete(id int) {
 
 	delete(l.s.ev, id)
+
+}
+
+// ProjectActivate ...
+func (l *Lab) ProjectActivate(id int) {
+
+	l.s.ev[id].activate()
+
+}
+
+// ProjectDeactivate ...
+func (l *Lab) ProjectDeactivate(id int) {
+
+	l.s.ev[id].deactivate()
 
 }
 
@@ -143,7 +170,7 @@ func (l *Lab) DelProject(id int) {
 func (l *Lab) Run() {
 
 	l.s.run = true
-	l.examine()
+	go l.examine()
 
 }
 
@@ -187,6 +214,7 @@ func (l *Lab) Volume(in []float64) [][]float64 {
 			vol = append(vol, p.exec(p.goal, in).project.value(p.goal))
 		}
 	}
+
 	return vol
 }
 
@@ -211,7 +239,9 @@ func (l *Lab) achieve() {
 		return l.prod.Compare(g[i].last(0), g[j].last(0))
 	})
 
-	l.s.goal = g[0]
+	if len(g) > 0 {
+		l.s.goal = g[0]
+	}
 
 }
 
@@ -227,12 +257,15 @@ func (l *Lab) Export() ([]byte, error) {
 		ID:  l.s.id,
 		Ev:  make([]memory, len(l.s.ev)),
 	}
-	for i, p := range l.s.ev {
+
+	i := 0
+	for _, p := range l.s.ev {
 		m.Ev[i] = memory{
 			ID:     p.id,
 			Ev:     make([]memory, len(p.ev)),
 			Layout: p.layout,
 			Age:    p.age,
+			Active: p.active,
 		}
 		for ii, e := range p.ev {
 			m.Ev[i].Ev[ii] = memory{
@@ -241,6 +274,7 @@ func (l *Lab) Export() ([]byte, error) {
 				Result: e.result,
 			}
 		}
+		i++
 	}
 
 	b := bytes.Buffer{}
@@ -277,7 +311,8 @@ func (l *Lab) Import(data []byte) error {
 	}
 	l.s.id = m.ID
 	for _, p := range m.Ev {
-		l.SetProject(p.ID, p.Layout)
+		l.ProjectSet(p.ID, p.Layout)
+		l.s.ev[p.ID].active = p.Active
 		l.s.ev[p.ID].age = p.Age
 		ev := make([]*entity, len(p.Ev))
 		for i, e := range p.Ev {
@@ -302,6 +337,7 @@ func (l *Lab) Import(data []byte) error {
 type memory struct {
 	Cfg      Config
 	ID       int
+	Active   bool
 	Ev       []memory
 	Layout   [][]Node
 	Age      int

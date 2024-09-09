@@ -14,8 +14,55 @@ func newPosition(x, y int) position {
 	return position{x, y}
 }
 
-type kv struct {
+type dict struct {
+	m map[string]*setupItem
+	l []*setupItem
+}
+
+type setupItem struct {
 	key, value string
+}
+
+func newDict(l []*setupItem) *dict {
+
+	d := &dict{m: make(map[string]*setupItem), l: make([]*setupItem, len(l))}
+	for i, v := range l {
+		d.m[v.key] = v
+		d.l[i] = v
+	}
+
+	return d
+}
+
+func (d *dict) get(key string) string {
+
+	return d.m[key].value
+}
+
+func (d *dict) set(key string, value string) {
+
+	v, ok := d.m[key]
+
+	if ok {
+		d.m[key].value = value
+		return
+	}
+
+	v = &setupItem{key, value}
+	d.m[key] = v
+	d.l = append(d.l, v)
+
+}
+
+var defaultSetup []*setupItem = []*setupItem{
+	{"LabFile", "./ev.lab"},
+	{"Size", "1000"},
+	{"Aggr", "avg"},
+	{"Proc", "linear"},
+	{"Goal", "false"},
+	{"Duel", "false"},
+	{"In", "2"},
+	{"Out", "2"},
 }
 
 func space(v any, left, right int) string {

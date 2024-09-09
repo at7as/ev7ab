@@ -8,8 +8,8 @@ import (
 
 // Node ...
 type Node struct {
-	src [][2]int
-	out int
+	Src [][2]int
+	Out int
 }
 
 type project struct {
@@ -93,24 +93,24 @@ func (p *project) compile() {
 
 			index[i][ii] = p.out
 
-			src := make([][2]int, len(n.src))
+			src := make([][2]int, len(n.Src))
 			in := 0
-			for iii, s := range n.src {
+			for iii, s := range n.Src {
 				is := index[s[0]][s[1]]
-				o := p.layout[s[0]][s[1]].out
+				o := p.layout[s[0]][s[1]].Out
 				src[iii] = [2]int{is, is + o}
 				in += o
 			}
 
 			mods := p.mod
-			modc := in * n.out
+			modc := in * n.Out
 			p.mod += modc
-			p.out += n.out
+			p.out += n.Out
 
 			p.model = append(p.model, node{
 				Node: Node{
-					out: n.out,
-					src: src,
+					Out: n.Out,
+					Src: src,
 				},
 				in:   float64(in),
 				mods: mods,
@@ -139,7 +139,9 @@ func (p *project) examine() {
 
 	for p.lab.s.run {
 		p.generation()
-		p.evolution()
+		if len(p.gen) > 0 {
+			p.evolution()
+		}
 		p.age++
 	}
 
@@ -193,7 +195,10 @@ func (p *project) evolution() {
 	lenev1 := lenev - 1
 	lengen1 := lengen - 1
 
-	l := lenev*3 + lengen*3 + p.size*2
+	l := lenev*3 + lengen*3
+	if len(p.ev) > 0 {
+		l += p.size * 2
+	}
 	c := l + lenev + lengen
 	h := &house{make([]*entity, l, c)}
 	index := 0
@@ -215,11 +220,13 @@ func (p *project) evolution() {
 		go p.combine(p.rand[i], e, p.gen[lengen1-i], h, index)
 		index++
 	}
-	for i := range p.size {
-		go p.combine(p.rand[i], p.ev[rand.IntN(len(p.ev))], p.gen[rand.IntN(len(p.gen))], h, index)
-		index++
-		go p.mediate(p.ev[:rand.IntN(len(p.ev))], h, index)
-		index++
+	if len(p.ev) > 0 {
+		for i := range p.size {
+			go p.combine(p.rand[i], p.ev[rintn(p.rand[i], len(p.ev))], p.gen[rintn(p.rand[i], len(p.gen))], h, index)
+			index++
+			go p.mediate(p.ev[:rintn(p.rand[i], len(p.ev))], h, index)
+			index++
+		}
 	}
 	p.wg.Wait()
 
@@ -237,7 +244,7 @@ func (p *project) evolution() {
 		h.e[i].atomize()
 	}
 
-	p.ev = h.e[:p.size]
+	p.ev = h.e[:min(len(h.e), p.size)]
 
 	p.achieve()
 
@@ -247,7 +254,7 @@ func (p *project) mutate(r *rand.Rand, e *entity, h *house, index int) {
 
 	mod := e.mod.clone(p.pool.mod)
 
-	num := r.Perm(len(p.model) - 1)[:1+r.IntN(len(p.model)-2)]
+	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-2)]
 	for _, numi := range num {
 		n := p.model[numi]
 		for i := n.mods; i < n.mods+n.modc; i++ {
@@ -265,7 +272,7 @@ func (p *project) variate(r *rand.Rand, e *entity, h *house, index int) {
 
 	mod := e.mod.clone(p.pool.mod)
 
-	num := r.Perm(len(p.model) - 1)[:1+r.IntN(len(p.model)-2)]
+	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-2)]
 	for _, numi := range num {
 		n := p.model[numi]
 		for i := n.mods; i < n.mods+n.modc; i++ {
@@ -283,7 +290,7 @@ func (p *project) combine(r *rand.Rand, e1 *entity, e2 *entity, h *house, index 
 
 	mod := e1.mod.clone(p.pool.mod)
 
-	num := r.Perm(len(p.model) - 1)[:1+r.IntN(len(p.model)-2)]
+	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-2)]
 	for _, numi := range num {
 		n := p.model[numi]
 		for i := n.mods; i < n.mods+n.modc; i++ {
@@ -396,7 +403,7 @@ func (p *project) achieve() {
 
 }
 
-func (p *project) stat() (int, int, int, []float64, bool) {
+func (p *project) stat() (int, int, int, string, bool) {
 
 	result := []float64{}
 	if p.goal != nil {
@@ -405,7 +412,7 @@ func (p *project) stat() (int, int, int, []float64, bool) {
 		result = p.ev[0].last(0)
 	}
 
-	return len(p.gen), len(p.ev), p.age, result, p.goal != nil
+	return len(p.gen), len(p.ev), p.age, p.lab.prod.Best(result), p.goal != nil
 }
 
 func clamp(v float64) float64 {
@@ -416,4 +423,13 @@ func clamp(v float64) float64 {
 func triangular(n int) int {
 
 	return n * (n + 1) / 2
+}
+
+func rintn(r *rand.Rand, v int) int {
+
+	if v == 0 {
+		return 0
+	}
+	return r.IntN(v)
+
 }

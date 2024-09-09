@@ -44,6 +44,9 @@ func (c *helpBox) render() ([]string, error) {
 		buf = append(buf, fmt.Sprintf(" %s Change value", c.button("Enter")))
 		buf = append(buf, " ")
 		buf = append(buf, fmt.Sprintf(" %s Move down/up", c.button("↓↑")))
+		buf = append(buf, " ")
+		buf = append(buf, fmt.Sprintf(" %s Save lab data", c.button("^S")))
+		buf = append(buf, fmt.Sprintf(" %s Load lab data", c.button("^L")))
 
 	case tabResult:
 		buf = append(buf, fmt.Sprintf(" %s Toggle run state", c.button("Enter")))
@@ -54,8 +57,8 @@ func (c *helpBox) render() ([]string, error) {
 		buf = append(buf, fmt.Sprintf(" %s Edit project     %s Activate project", c.button("^E"), c.button("^A")))
 		buf = append(buf, fmt.Sprintf(" %s Dub project      %s Terminate project", c.button("^D"), c.button("^T")))
 		buf = append(buf, " ")
-		buf = append(buf, fmt.Sprintf(" %s  Select/deselect project", c.button("Space")))
-		buf = append(buf, fmt.Sprintf(" %s Select/deselect all projects", c.button("^Space")))
+		buf = append(buf, fmt.Sprintf(" %s  Select/deselect project          %s Save lab data", c.button("Space"), c.button("^S")))
+		buf = append(buf, fmt.Sprintf(" %s Select/deselect all projects     %s Load lab data", c.button("^Space"), c.button("^L")))
 
 	case tabEdit:
 		buf = append(buf, fmt.Sprintf(" %s New project          %s Insert stage", c.button("^N"), c.button("Insert")))
@@ -160,12 +163,69 @@ func (c *setupItemBox) close(_ *gocui.Gui, _ *gocui.View) error {
 	return app.closeModal()
 }
 
-// update app lab config
 func (c *setupItemBox) enter(_ *gocui.Gui, _ *gocui.View) error {
 
 	value, _ := c.widget.view.Line(0)
 
 	app.v.setup.setListValue(c.key, value)
+
+	switch c.key {
+	case "Size":
+		cfg := app.s.lab.GetConfig()
+		size, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.Size = size
+		if err = app.s.lab.Setup(cfg); err != nil {
+			return err
+		}
+	case "Aggr":
+		cfg := app.s.lab.GetConfig()
+		cfg.Aggr = value
+		if err = app.s.lab.Setup(cfg); err != nil {
+			return err
+		}
+	case "Proc":
+		cfg := app.s.lab.GetConfig()
+		cfg.Proc = value
+		if err = app.s.lab.Setup(cfg); err != nil {
+			return err
+		}
+	case "Goal":
+		cfg := app.s.lab.GetConfig()
+		goal, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Goal = goal
+		if err = app.s.lab.Setup(cfg); err != nil {
+			return err
+		}
+	case "Duel":
+		cfg := app.s.lab.GetConfig()
+		duel, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Duel = duel
+		if err = app.s.lab.Setup(cfg); err != nil {
+			return err
+		}
+	case "LabFile":
+		app.s.setup.set(c.key, value)
+		app.c.labfile = value
+	case "In":
+		app.s.setup.set(c.key, value)
+		app.c.in, _ = strconv.Atoi(value)
+	case "Out":
+		app.s.setup.set(c.key, value)
+		app.c.out, _ = strconv.Atoi(value)
+	default:
+		if err = app.s.prod.Setup(c.key, value); err != nil {
+			return err
+		}
+	}
 
 	return c.close(nil, nil)
 }

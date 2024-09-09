@@ -1,15 +1,12 @@
 package app
 
 import (
-	"strconv"
-
 	"github.com/at7as/ev7ab/pkg/lab"
 )
 
 type project struct {
 	id     int
 	status projectStatus
-	origin *project
 	stat
 	*model
 	draft    *model
@@ -48,24 +45,12 @@ func newProject(o *project) *project {
 		goal:   false,
 	}
 
-	in := 0
-	out := 0
-	for _, obj := range app.v.setup.list {
-		if obj.key == "In" {
-			in, _ = strconv.Atoi(obj.value)
-		}
-		if obj.key == "Out" {
-			out, _ = strconv.Atoi(obj.value)
-		}
-	}
-
 	return &project{
-		id:       app.s.lab.AddProject([][]lab.Node{}),
+		id:       app.s.lab.ProjectAdd([][]lab.Node{}),
 		status:   projectEdit,
-		origin:   o,
 		stat:     s,
 		model:    nil,
-		draft:    newProjectModel(o, in, out),
+		draft:    newProjectModel(o, app.c.in, app.c.out),
 		selected: false,
 	}
 }
@@ -74,16 +59,16 @@ func (p *project) edit() {
 
 	p.draft = p.model.clone()
 	p.draft.measure()
-	p.status = projectEdit
+	p.setStatus(projectEdit)
 
 }
 
 func (p *project) cancel() {
 
 	if !p.model.validate() {
-		p.status = projectInvalid
+		p.setStatus(projectInvalid)
 	} else {
-		p.status = projectHolded
+		p.setStatus(projectHolded)
 	}
 
 	p.draft = p.model
@@ -101,26 +86,53 @@ func (p *project) measure() {
 	p.draft.measure()
 }
 
+func (p *project) refine() {
+
+	p.gen, p.ev, p.age, p.best, p.goal = app.s.lab.ProjectStat(p.id)
+
+}
+
 func (p *project) save() {
 
 	if p.status == projectEdit {
 
-		if !p.validate() {
-			p.status = projectInvalid
-			app.v.edit.setInvalid(true)
-			go app.v.edit.hideInvalid()
-		} else if app.idle() {
-			p.status = projectActive
-		} else {
-			p.status = projectHolded
-		}
-
 		if p.model == nil {
-			app.s.list = append(app.s.list, p)
+			app.s.ev = append(app.s.ev, p)
 		}
 
 		p.model = p.draft
+		p.stat.size = p.model.size
+		p.stat.volume = p.model.volume
 
+		if !p.validate() {
+			p.setStatus(projectInvalid)
+			app.v.edit.setInvalid(true)
+			go app.v.edit.hideInvalid()
+		} else if app.idle() {
+			app.s.lab.ProjectSet(p.id, p.model.convert())
+			p.refine()
+			p.setStatus(projectActive)
+		} else {
+			p.setStatus(projectHolded)
+		}
+
+	}
+
+}
+
+func (p *project) setStatus(s projectStatus) {
+
+	p.status = s
+
+	if s == projectTerminated {
+		app.s.lab.ProjectDelete(p.id)
+		return
+	}
+
+	if s == projectActive {
+		app.s.lab.ProjectActivate(p.id)
+	} else {
+		app.s.lab.ProjectDeactivate(p.id)
 	}
 
 }

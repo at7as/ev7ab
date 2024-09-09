@@ -1,6 +1,8 @@
 package lab
 
-import "sync"
+import (
+	"sync"
+)
 
 type entity struct {
 	*project
@@ -54,16 +56,18 @@ func execDefault(e *entity, in []float64) *entity {
 	e.out.v = e.out.v[:0]
 	e.out.v = append(e.out.v, in...)
 	mod := 0
-	for _, n := range *e.model {
-		for range n.out {
-			v := 0.0
-			for _, index := range n.src {
-				for _, value := range e.out.v[index[0]:index[1]] {
-					v += qlinear(value, e.mod.v[mod])
-					mod++
+	for i, n := range *e.model {
+		if i > 0 {
+			for range n.Out {
+				v := 0.0
+				for _, index := range n.Src {
+					for _, value := range e.out.v[index[0]:index[1]] {
+						v += qlinear(value, e.mod.v[mod])
+						mod++
+					}
 				}
+				e.out.v = append(e.out.v, v/n.in)
 			}
-			e.out.v = append(e.out.v, v/n.in)
 		}
 	}
 
@@ -75,16 +79,18 @@ func execCustom(e *entity, in []float64) *entity {
 	e.out.v = e.out.v[:0]
 	e.out.v = append(e.out.v, in...)
 	mod := 0
-	for _, n := range *e.model {
-		for range n.out {
-			v := make([]float64, 0, int(n.in))
-			for _, index := range n.src {
-				for _, value := range e.out.v[index[0]:index[1]] {
-					v = append(v, qlinear(value, e.mod.v[mod]))
-					mod++
+	for i, n := range *e.model {
+		if i > 0 {
+			for range n.Out {
+				v := make([]float64, 0, int(n.in))
+				for _, index := range n.Src {
+					for _, value := range e.out.v[index[0]:index[1]] {
+						v = append(v, qlinear(value, e.mod.v[mod]))
+						mod++
+					}
 				}
+				e.out.v = append(e.out.v, e.project.lab.s.aggr(v))
 			}
-			e.out.v = append(e.out.v, e.project.lab.s.aggr(v))
 		}
 	}
 
@@ -99,7 +105,7 @@ func qlinear(v, m float64) float64 {
 func valueDefault(e *entity) []float64 {
 
 	out := make([]float64, 0)
-	for _, v := range e.out.v[len(e.out.v)-(*e.model)[len(*e.model)-1].out:] {
+	for _, v := range e.out.v[len(e.out.v)-(*e.model)[len(*e.model)-1].Out:] {
 		out = append(out, v)
 	}
 
@@ -109,7 +115,7 @@ func valueDefault(e *entity) []float64 {
 func valueCustom(e *entity) []float64 {
 
 	out := make([]float64, 0)
-	for _, v := range e.out.v[len(e.out.v)-(*e.model)[len(*e.model)-1].out:] {
+	for _, v := range e.out.v[len(e.out.v)-(*e.model)[len(*e.model)-1].Out:] {
 		out = append(out, e.project.lab.s.proc(v))
 	}
 
