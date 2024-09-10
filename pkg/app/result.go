@@ -159,7 +159,11 @@ func (w *resultWidget) render() ([]string, error) {
 
 func (w *resultWidget) keybinding() error {
 
-	if err = gui.SetKeybinding(w.name, gocui.KeyEnter, gocui.ModNone, w.toggleRunApp); err != nil {
+	if err = gui.SetKeybinding(w.name, gocui.KeyEnter, gocui.ModNone, w.runProd); err != nil {
+		return err
+	}
+
+	if err = gui.SetKeybinding(w.name, gocui.KeyEsc, gocui.ModNone, w.stopProd); err != nil {
 		return err
 	}
 
@@ -218,7 +222,7 @@ func (w *resultWidget) keybinding() error {
 	return nil
 }
 
-func (w *resultWidget) toggleRunApp(_ *gocui.Gui, _ *gocui.View) error {
+func (w *resultWidget) runProd(_ *gocui.Gui, _ *gocui.View) error {
 
 	if app.idle() {
 
@@ -230,7 +234,14 @@ func (w *resultWidget) toggleRunApp(_ *gocui.Gui, _ *gocui.View) error {
 		app.s.lab.Run()
 		go w.checkStats()
 
-	} else if app.s.status == appRun {
+	}
+
+	return nil
+}
+
+func (w *resultWidget) stopProd(_ *gocui.Gui, _ *gocui.View) error {
+
+	if app.s.status == appRun {
 
 		app.apply(appWait, "Wait for stop examine")
 		w.mark()
@@ -500,7 +511,7 @@ func (w *resultWidget) checkStats() {
 	if app.s.lab.GetExec() {
 		go w.checkStats()
 	} else {
-		w.toggleRunApp(nil, nil)
+		w.stopProd(nil, nil)
 	}
 
 	for _, p := range app.s.ev {

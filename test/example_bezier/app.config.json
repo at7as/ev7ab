@@ -1,0 +1,11 @@
+{
+  "app": {
+    "LabFile": "./test/example_bezier/ev.lab",
+    "In": "12",
+    "Out": "4"
+  },
+  "prod": {
+    "valid": "10.0",
+    "goal": "1.0"
+  }
+}

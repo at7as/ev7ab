@@ -1,13 +1,15 @@
 package lib
 
-// tic tac toe
-// digits
-// bezier
-
 import (
+	"compress/zlib"
+	"flag"
 	"fmt"
+	"io"
+	"log"
 	"math"
+	"os"
 
+	"github.com/at7as/ev7ab/pkg/app"
 	"github.com/at7as/ev7ab/pkg/lab"
 )
 
@@ -64,4 +66,44 @@ func (p *ExampleSimple) Goal(v []float64) bool {
 	}
 
 	return false
+}
+
+func ExampleSimpleApp() {
+
+	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
+
+	flag.Parse()
+
+	app.Run(&ExampleSimple{}, *cfgFile)
+
+}
+
+func ExampleSimpleTry() {
+
+	f, err := os.Open("./test/example_simple/ev.lab")
+	if err != nil {
+		log.Panicln(err)
+	}
+	defer f.Close()
+
+	d, err := zlib.NewReader(f)
+	if err != nil {
+		log.Panicln(err)
+	}
+	defer d.Close()
+
+	b, err := io.ReadAll(d)
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	l := lab.New(&ExampleSimple{})
+
+	if err = l.Import(b); err != nil {
+		log.Panicln(err)
+	}
+
+	fmt.Println(l.Value([]float64{0.1, 0.2}))
+	fmt.Println(l.Volume([]float64{0.1, 0.2}))
+
 }

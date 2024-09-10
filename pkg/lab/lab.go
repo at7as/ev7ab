@@ -81,7 +81,7 @@ func (l *Lab) Setup(c Config) error {
 		l.s.proc = proc
 	}
 
-	if newSize {
+	if !newSize {
 		l.resize()
 	}
 
@@ -164,6 +164,28 @@ func (l *Lab) ProjectDeactivate(id int) {
 
 	l.s.ev[id].deactivate()
 
+}
+
+// ProjectValue ...
+func (l *Lab) ProjectValue(id int, in []float64) []float64 {
+
+	var e *entity
+	if len(l.s.ev[id].ev) > 0 {
+		e = l.s.ev[id].ev[0]
+		return l.s.ev[id].exec(e, in).project.value(e)
+	}
+
+	return []float64{}
+}
+
+// ProjectDump ...
+func (l *Lab) ProjectDump(id int) []float64 {
+
+	if len(l.s.ev[id].ev) > 0 {
+		return l.s.ev[id].ev[0].mod.v
+	}
+
+	return []float64{}
 }
 
 // Run ...

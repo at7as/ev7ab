@@ -133,6 +133,8 @@ func (p *project) resize() {
 		p.rand = p.rand[:p.lab.c.Size]
 	}
 
+	p.size = p.lab.c.Size
+
 }
 
 func (p *project) examine() {
@@ -190,8 +192,8 @@ func (p *project) spawn(mod *atom) *entity {
 
 func (p *project) evolution() {
 
-	lenev := len(p.ev)
-	lengen := len(p.gen)
+	lenev := min(len(p.ev), p.size)
+	lengen := min(len(p.gen), p.size)
 	lenev1 := lenev - 1
 	lengen1 := lengen - 1
 
@@ -204,7 +206,8 @@ func (p *project) evolution() {
 	index := 0
 
 	p.wg.Add(l)
-	for i, e := range p.ev {
+	for i := range lenev {
+		e := p.ev[i]
 		go p.mutate(p.rand[i], e, h, index)
 		index++
 		go p.variate(p.rand[i], e, h, index)
@@ -212,7 +215,8 @@ func (p *project) evolution() {
 		go p.combine(p.rand[i], e, p.ev[lenev1-i], h, index)
 		index++
 	}
-	for i, e := range p.gen {
+	for i := range lengen {
+		e := p.gen[i]
 		go p.mutate(p.rand[i], e, h, index)
 		index++
 		go p.variate(p.rand[i], e, h, index)
@@ -222,9 +226,9 @@ func (p *project) evolution() {
 	}
 	if len(p.ev) > 0 {
 		for i := range p.size {
-			go p.combine(p.rand[i], p.ev[rintn(p.rand[i], len(p.ev))], p.gen[rintn(p.rand[i], len(p.gen))], h, index)
+			go p.combine(p.rand[i], p.ev[rintn(p.rand[i], lenev)], p.gen[rintn(p.rand[i], lengen)], h, index)
 			index++
-			go p.mediate(p.ev[:rintn(p.rand[i], len(p.ev))], h, index)
+			go p.mediate(p.ev[:rintn(p.rand[i], lenev)], h, index)
 			index++
 		}
 	}

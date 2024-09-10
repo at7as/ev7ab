@@ -1,8 +1,8 @@
 run:
-	@go run ./cmd/app --config=./test/example_simple/app.config.json
+	@go run ./cmd/app --config=./test/example_bezier/app.config.json
 
-run-test:
-	@go run ./cmd/app --config=./test/example_simple/app.config.json
+example_simple:
+	@go run ./cmd/example_simple --config=./test/example_simple/app.config.json
 
 build-app:
 	@go build -o ./build/ ./cmd/app
