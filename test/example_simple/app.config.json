@@ -1,12 +1,7 @@
 {
   "app": {
     "LabFile": "./test/example_simple/ev.lab",
-    "In": "2",
-    "Out": "1"
-  },
-  "prod": {
-    "InputFile": "",
-    "Target": "",
-    "Limit": ""
+    "In": "4",
+    "Out": "4"
   }
 }

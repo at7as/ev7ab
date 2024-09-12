@@ -15,7 +15,7 @@ import (
 	"github.com/at7as/ev7ab/pkg/lab"
 )
 
-const size int = 10
+const sizeBezier int = 10
 
 type ExampleBezier struct {
 	t     [][]float64
@@ -26,10 +26,10 @@ type ExampleBezier struct {
 
 func (p *ExampleBezier) Load(setup map[string]string) error {
 
-	p.t = make([][]float64, size)
-	p.r = make([][2]point, size)
+	p.t = make([][]float64, sizeBezier)
+	p.r = make([][2]point, sizeBezier)
 
-	for i := range size {
+	for i := range sizeBezier {
 
 		p0 := point{rand.Float64(), rand.Float64()}
 		p1 := point{rand.Float64(), rand.Float64()}
@@ -165,7 +165,7 @@ func ExampleBezierApp() {
 
 	flag.Parse()
 
-	app.Run(&ExampleBezier{}, *cfgFile)
+	app.Run(&ExampleBezier{}, *cfgFile, true)
 
 }
 
@@ -188,7 +188,7 @@ func ExampleBezierTry() {
 		log.Panicln(err)
 	}
 
-	l := lab.New(&ExampleBezier{})
+	l := lab.New(&ExampleBezier{}, false)
 
 	if err = l.Import(b); err != nil {
 		log.Panicln(err)

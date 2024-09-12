@@ -55,7 +55,7 @@ const (
 	appWait
 )
 
-func createApplication(prod lab.Producer, cfgFile string) {
+func createApplication(prod lab.Producer, cfgFile string, debug bool) {
 
 	app = &application{}
 
@@ -69,7 +69,7 @@ func createApplication(prod lab.Producer, cfgFile string) {
 	app.s = state{
 		status: appIdle,
 		prod:   prod,
-		lab:    lab.New(prod),
+		lab:    lab.New(prod, debug),
 		setup:  newDict(defaultSetup),
 		ev:     make([]*project, 0),
 	}
@@ -131,6 +131,10 @@ func (a *application) keybinding() error {
 
 func (a *application) quit(_ *gocui.Gui, _ *gocui.View) error {
 
+	if err = a.s.lab.Close(); err != nil {
+		return err
+	}
+
 	return gocui.ErrQuit
 }
 
@@ -190,6 +194,20 @@ func (a *application) showEdit(_ *gocui.Gui, _ *gocui.View) error {
 	if err = a.closeModal(); err != nil {
 		return err
 	}
+
+	if app.v.keybar.tab == tabResult {
+		p := app.v.result.getFocused()
+		if p != nil {
+			if app.v.edit.draft == nil {
+				app.v.edit.setDraft(p)
+			} else {
+				if app.v.edit.draft.status != projectEdit {
+					app.v.edit.setDraft(p)
+				}
+			}
+		}
+	}
+
 	a.v.keybar.setTab(tabEdit)
 
 	return a.setTabCurrent(tabEdit)
@@ -470,14 +488,14 @@ func (a *application) update(f func(g *gocui.Gui) error) {
 }
 
 // Run ...
-func Run(prod lab.Producer, appConfigFile string) {
+func Run(prod lab.Producer, appConfigFile string, debug bool) {
 
 	if gui, err = gocui.NewGui(gocui.OutputNormal); err != nil {
 		log.Panicln(err)
 	}
 	defer gui.Close()
 
-	createApplication(prod, appConfigFile)
+	createApplication(prod, appConfigFile, debug)
 	if err = app.loadConfig(); err != nil {
 		log.Panicln(err)
 	}

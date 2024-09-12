@@ -313,6 +313,7 @@ func (w *resultWidget) editProject(_ *gocui.Gui, _ *gocui.View) error {
 		app.v.edit.setDraft(p)
 		app.v.edit.draft.edit()
 		app.v.edit.reset()
+		w.mark()
 
 		return app.showEdit(nil, nil)
 	}

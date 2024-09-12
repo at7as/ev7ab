@@ -1,6 +1,9 @@
 package lab
 
 import (
+	"fmt"
+	"log"
+	"math"
 	"math/rand/v2"
 	"sort"
 	"sync"
@@ -32,6 +35,7 @@ type project struct {
 	value func(*entity) []float64
 	age   int
 	goal  *entity
+	// step  int
 }
 
 type layout [][]Node
@@ -155,8 +159,8 @@ func (p *project) generation() {
 
 	h := &house{make([]*entity, p.size)}
 
-	p.wg.Add(len(h.e))
-	for i := range len(h.e) {
+	p.wg.Add(p.size)
+	for i := range p.size {
 		go p.generate(p.rand[i], h, i)
 	}
 	p.wg.Wait()
@@ -174,161 +178,230 @@ func (p *project) generate(r *rand.Rand, h *house, index int) {
 		mod.v = append(mod.v, r.Float64())
 	}
 
-	h.e[index] = p.spawn(mod)
+	h.e[index] = p.spawn(mod, make([][]float64, 0), 0)
 
 	p.wg.Done()
 
 }
 
-func (p *project) spawn(mod *atom) *entity {
+func (p *project) spawn(mod *atom, result [][]float64, origin int) *entity {
+
+	r := [][]float64{}
+	if len(result) > 0 {
+		rr := make([]float64, len(result[len(result)-1]))
+		copy(rr, result[len(result)-1])
+		r = append(r, rr)
+	}
 
 	return &entity{
 		project: p,
 		model:   &p.model,
 		mod:     mod,
 		out:     p.pool.out.Get().(*atom),
+		result:  r,
+		origin:  origin,
 	}
 }
 
 func (p *project) evolution() {
 
-	lenev := min(len(p.ev), p.size)
-	lengen := min(len(p.gen), p.size)
-	lenev1 := lenev - 1
-	lengen1 := lengen - 1
+	lenev := len(p.ev)
+	lengen := len(p.gen)
 
-	l := lenev*3 + lengen*3
-	if len(p.ev) > 0 {
-		l += p.size * 2
+	l := lenev*2 + lengen*2 + min(lenev, lengen)
+	if lenev > 1 {
+		l += lenev
 	}
-	c := l + lenev + lengen
-	h := &house{make([]*entity, l, c)}
+	if lengen > 1 {
+		l += lengen
+	}
+	he := &house{make([]*entity, l)}
 	index := 0
 
 	p.wg.Add(l)
 	for i := range lenev {
 		e := p.ev[i]
-		go p.mutate(p.rand[i], e, h, index)
+		go p.mutate(p.rand[i], e, he, index, 2)
 		index++
-		go p.variate(p.rand[i], e, h, index)
+		go p.variate(p.rand[i], e, he, index, 3)
 		index++
-		go p.combine(p.rand[i], e, p.ev[lenev1-i], h, index)
-		index++
+		if lenev > 1 {
+			ii := 0
+			for {
+				ii = p.rand[i].IntN(lenev)
+				if i != ii {
+					break
+				}
+			}
+			go p.combine(p.rand[i], e, p.ev[ii], he, index, 4)
+			index++
+		}
 	}
 	for i := range lengen {
 		e := p.gen[i]
-		go p.mutate(p.rand[i], e, h, index)
+		go p.mutate(p.rand[i], e, he, index, 5)
 		index++
-		go p.variate(p.rand[i], e, h, index)
+		go p.variate(p.rand[i], e, he, index, 6)
 		index++
-		go p.combine(p.rand[i], e, p.gen[lengen1-i], h, index)
-		index++
-	}
-	if len(p.ev) > 0 {
-		for i := range p.size {
-			go p.combine(p.rand[i], p.ev[rintn(p.rand[i], lenev)], p.gen[rintn(p.rand[i], lengen)], h, index)
-			index++
-			go p.mediate(p.ev[:rintn(p.rand[i], lenev)], h, index)
+		if lengen > 1 {
+			ii := 0
+			for {
+				ii = p.rand[i].IntN(lengen)
+				if i != ii {
+					break
+				}
+			}
+			go p.combine(p.rand[i], e, p.gen[ii], he, index, 7)
 			index++
 		}
+	}
+	for i := range min(lenev, lengen) {
+		go p.combine(p.rand[i], p.ev[i], p.gen[i], he, index, 8)
+		index++
 	}
 	p.wg.Wait()
 
-	p.production(h)
-	p.reduce(h)
+	p.production(he)
+	p.reduce(he)
 
-	h.e = append(h.e, p.ev...)
-	h.e = append(h.e, p.gen...)
+	he.e = append(he.e, p.gen...)
 
-	sort.Slice(h.e, func(i, j int) bool {
-		return p.lab.prod.Compare(h.e[i].last(0), h.e[j].last(0))
-	})
-
-	for i := p.size; i < len(h.e); i++ {
-		h.e[i].atomize()
+	for _, e := range p.ev {
+		e.origin = 1
 	}
 
-	p.ev = h.e[:min(len(h.e), p.size)]
+	if len(he.e) < p.size/2 {
+
+		for _, e := range p.ev {
+			if len(he.e) < p.size {
+				he.e = append(he.e, e)
+			} else {
+				e.atomize()
+			}
+		}
+
+		sort.SliceStable(he.e, func(i, j int) bool {
+			return p.lab.prod.Compare(he.e[i].last(0), he.e[j].last(0))
+		})
+
+		p.ev = he.e
+
+	} else {
+
+		he.e = append(he.e, p.ev...)
+
+		sort.SliceStable(he.e, func(i, j int) bool {
+			return p.lab.prod.Compare(he.e[i].last(0), he.e[j].last(0))
+		})
+
+		counter := [9]int{}
+		for _, e := range he.e {
+			counter[e.origin]++
+		}
+		for i, v := range counter {
+			counter[i] = int(math.Floor(float64(v) / float64(len(he.e)) * float64(min(len(he.e), p.size))))
+		}
+
+		h := &house{make([]*entity, 0, p.size)}
+		for _, e := range he.e {
+			if counter[e.origin] > 0 {
+				h.e = append(h.e, e)
+				counter[e.origin]--
+			} else {
+				e.atomize()
+			}
+		}
+
+		p.ev = h.e
+
+	}
 
 	p.achieve()
 
+	if p.lab.c.debug {
+
+		s := make([][]int, 9)
+		for i := range s {
+			s[i] = make([]int, 2)
+			s[i][0] = p.size
+		}
+		for i, e := range p.ev {
+			s[e.origin][0] = min(s[e.origin][0], i)
+			s[e.origin][1] = s[e.origin][1] + 1
+		}
+		gen, ev, age, best, goal := p.stat()
+		text := fmt.Sprintf("id:%v gen:%v ev:%v age:%v best:%s goal:%v", p.id, gen, ev, age, best, goal)
+		for i := range s {
+			if s[i][1] > 0 {
+				text += fmt.Sprintf(" %v:%v:%v", i, s[i][0], s[i][1])
+			}
+		}
+		text += "\n"
+		if _, err := p.lab.s.debugfile.WriteString(text); err != nil {
+			log.Panicln(err)
+		}
+
+	}
+
 }
 
-func (p *project) mutate(r *rand.Rand, e *entity, h *house, index int) {
+func (p *project) mutate(r *rand.Rand, e *entity, h *house, index int, origin int) {
 
 	mod := e.mod.clone(p.pool.mod)
 
-	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-2)]
+	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-1)]
 	for _, numi := range num {
-		n := p.model[numi]
-		for i := n.mods; i < n.mods+n.modc; i++ {
-			mod.v[i] = clamp(mod.v[i] + 0.1*(r.Float64()-0.5))
+		n := p.model[numi+1]
+		numv := r.Perm(n.modc)[:1+rintn(r, n.modc-1)]
+		for _, i := range numv {
+			mod.v[n.mods+i] = clamp(mod.v[n.mods+i] + 0.1*(r.Float64()-0.5))
 		}
 	}
 
-	h.e[index] = p.spawn(mod)
+	h.e[index] = p.spawn(mod, e.result, origin)
 
 	p.wg.Done()
 
 }
 
-func (p *project) variate(r *rand.Rand, e *entity, h *house, index int) {
+func (p *project) variate(r *rand.Rand, e *entity, h *house, index int, origin int) {
 
 	mod := e.mod.clone(p.pool.mod)
 
-	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-2)]
+	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-1)]
 	for _, numi := range num {
-		n := p.model[numi]
-		for i := n.mods; i < n.mods+n.modc; i++ {
-			mod.v[i] = r.Float64()
+		n := p.model[numi+1]
+		numv := r.Perm(n.modc)[:1+rintn(r, n.modc-1)]
+		for _, i := range numv {
+			mod.v[n.mods+i] = r.Float64()
 		}
 	}
 
-	h.e[index] = p.spawn(mod)
+	h.e[index] = p.spawn(mod, e.result, origin)
 
 	p.wg.Done()
 
 }
 
-func (p *project) combine(r *rand.Rand, e1 *entity, e2 *entity, h *house, index int) {
+func (p *project) combine(r *rand.Rand, e1 *entity, e2 *entity, h *house, index int, origin int) {
 
 	mod := e1.mod.clone(p.pool.mod)
 
-	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-2)]
+	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-1)]
 	for _, numi := range num {
-		n := p.model[numi]
-		for i := n.mods; i < n.mods+n.modc; i++ {
-			mod.v[i] = e2.mod.v[i]
+		n := p.model[numi+1]
+		numv := r.Perm(n.modc)[:1+rintn(r, n.modc-1)]
+		for _, i := range numv {
+			mod.v[n.mods+i] = e2.mod.v[n.mods+i]
 		}
 	}
 
-	h.e[index] = p.spawn(mod)
+	hr := &house{[]*entity{e1, e2}}
+	sort.SliceStable(hr.e, func(i, j int) bool {
+		return p.lab.prod.Compare(hr.e[i].last(0), hr.e[j].last(0))
+	})
 
-	p.wg.Done()
-
-}
-
-func (p *project) mediate(e []*entity, h *house, index int) {
-
-	mod := p.pool.mod.Get().(*atom)
-
-	for range p.mod {
-		mod.v = append(mod.v, 0)
-	}
-
-	for i, esrc := range e {
-		w := float64((len(e) - i))
-		for ii, v := range esrc.mod.v {
-			mod.v[ii] += v * w
-		}
-	}
-
-	tri := triangular(len(e))
-	for i := range p.mod {
-		mod.v[i] /= float64(tri)
-	}
-
-	h.e[index] = p.spawn(mod)
+	h.e[index] = p.spawn(mod, hr.e[0].result, origin)
 
 	p.wg.Done()
 
@@ -371,7 +444,7 @@ func (p *project) reduce(h *house) {
 
 	he := make([]*entity, 0, len(h.e))
 	for _, e := range h.e {
-		if len(e.result) > 1 && p.lab.prod.Compare(e.last(1), e.last(0)) {
+		if p.lab.prod.Compare(e.last(0), e.last(1)) {
 			he = append(he, e)
 		} else {
 			e.atomize()
@@ -424,14 +497,9 @@ func clamp(v float64) float64 {
 	return max(0.0, min(1.0, v))
 }
 
-func triangular(n int) int {
-
-	return n * (n + 1) / 2
-}
-
 func rintn(r *rand.Rand, v int) int {
 
-	if v == 0 {
+	if v < 2 {
 		return 0
 	}
 	return r.IntN(v)

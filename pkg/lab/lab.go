@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"log"
+	"os"
 	"sort"
 	"sync"
 )
@@ -17,45 +19,68 @@ type Lab struct {
 
 // Config ...
 type Config struct {
-	Size int
-	Aggr string
-	Proc string
-	Goal bool
-	Duel bool
+	Size  int
+	Aggr  string
+	Proc  string
+	Goal  bool
+	Duel  bool
+	debug bool
 }
 
 type state struct {
-	aggr Aggregator
-	proc Processor
-	run  bool
-	exec bool
-	id   int
-	ev   map[int]*project
-	goal *entity
-	wg   *sync.WaitGroup
+	aggr      Aggregator
+	proc      Processor
+	run       bool
+	exec      bool
+	id        int
+	ev        map[int]*project
+	goal      *entity
+	wg        *sync.WaitGroup
+	debugfile *os.File
 }
 
 // New ...
-func New(prod Producer) *Lab {
+func New(prod Producer, debug bool) *Lab {
 
 	c := Config{
-		Size: 1000,
-		Aggr: "avg",
-		Proc: "linear",
-		Goal: false,
-		Duel: false,
+		Size:  1000,
+		Aggr:  "avg",
+		Proc:  "linear",
+		Goal:  false,
+		Duel:  false,
+		debug: debug,
 	}
 
 	s := state{
-		aggr: nil,
-		proc: nil,
-		run:  false,
-		id:   0,
-		ev:   make(map[int]*project),
-		wg:   &sync.WaitGroup{},
+		aggr:      nil,
+		proc:      nil,
+		run:       false,
+		id:        0,
+		ev:        make(map[int]*project),
+		wg:        &sync.WaitGroup{},
+		debugfile: nil,
+	}
+
+	if debug {
+		os.Remove("./lab.log")
+		f, err := os.OpenFile("./lab.log", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			log.Panicln(err)
+		}
+		s.debugfile = f
 	}
 
 	return &Lab{prod, c, s}
+}
+
+// Close ...
+func (l *Lab) Close() error {
+
+	if l.s.debugfile != nil {
+		return l.s.debugfile.Close()
+	}
+
+	return nil
 }
 
 // Setup ...
@@ -257,7 +282,7 @@ func (l *Lab) achieve() {
 		}
 	}
 
-	sort.Slice(g, func(i, j int) bool {
+	sort.SliceStable(g, func(i, j int) bool {
 		return l.prod.Compare(g[i].last(0), g[j].last(0))
 	})
 
@@ -294,6 +319,7 @@ func (l *Lab) Export() ([]byte, error) {
 				Mod:    e.mod.v,
 				Out:    e.out.v,
 				Result: e.result,
+				Age:    e.origin,
 			}
 		}
 		i++
@@ -342,11 +368,11 @@ func (l *Lab) Import(data []byte) error {
 			for _, v := range e.Mod {
 				mod.v = append(mod.v, v)
 			}
-			ev[i] = l.s.ev[p.ID].spawn(mod)
+			ev[i] = l.s.ev[p.ID].spawn(mod, e.Result, 0)
 			for _, v := range e.Out {
 				ev[i].out.v = append(ev[i].out.v, v)
 			}
-			ev[i].result = e.Result
+			ev[i].origin = e.Age
 		}
 		l.s.ev[p.ID].ev = ev
 		l.s.ev[p.ID].achieve()

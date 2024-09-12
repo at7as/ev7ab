@@ -6,6 +6,6 @@ import (
 
 func main() {
 
-	lib.ExampleBezierApp()
+	lib.ExampleSimpleApp()
 
 }

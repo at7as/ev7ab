@@ -7,15 +7,34 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand/v2"
 	"os"
 
 	"github.com/at7as/ev7ab/pkg/app"
 	"github.com/at7as/ev7ab/pkg/lab"
+	"gonum.org/v1/gonum/floats"
 )
 
-type ExampleSimple struct{}
+const sizeSimple int = 1000
+
+type ExampleSimple struct {
+	t [][]float64
+	r []int
+	s float64
+}
 
 func (p *ExampleSimple) Load(setup map[string]string) error {
+
+	p.t = make([][]float64, sizeSimple)
+	p.r = make([]int, sizeSimple)
+	p.s = float64(sizeSimple)
+
+	for i := range sizeSimple {
+
+		p.t[i] = []float64{rand.Float64(), rand.Float64(), rand.Float64(), rand.Float64()}
+		p.r[i] = int(math.Floor(floats.Sum(p.t[i])))
+
+	}
 
 	return nil
 }
@@ -26,9 +45,23 @@ func (p *ExampleSimple) Setup(key, value string) error {
 }
 
 func (p *ExampleSimple) Produce(n lab.Next, op lab.Next) []float64 {
-	r := n([]float64{0.1, 0.2})
-	d := math.Abs((r[0] / 0.3) - 1.0)
-	return []float64{d, r[0]}
+
+	total := 0
+	for i, in := range p.t {
+		res := 0.0
+		index := 0
+		for ii, v := range n(in) {
+			if v > res {
+				index = ii
+				res = v
+			}
+		}
+		if index == p.r[i] {
+			total++
+		}
+	}
+
+	return []float64{float64(total) / p.s}
 }
 
 func (p *ExampleSimple) Challange(n1 lab.Next, n2 lab.Next) []float64 {
@@ -37,12 +70,13 @@ func (p *ExampleSimple) Challange(n1 lab.Next, n2 lab.Next) []float64 {
 }
 
 func (p *ExampleSimple) Compare(a, b []float64) bool {
-	return a[0] < b[0]
+
+	return a[0] > b[0]
 }
 
 func (p *ExampleSimple) Validate(r []float64) bool {
 
-	if r[0] > 1.0 {
+	if r[0] < 0.5 {
 		return false
 	}
 
@@ -53,7 +87,7 @@ func (p *ExampleSimple) Best(v []float64) string {
 
 	best := ""
 	if len(v) > 0 {
-		best = fmt.Sprintf("%.2f", v[0])
+		best = fmt.Sprintf("%.1f%%", v[0]*100.0)
 	}
 
 	return best
@@ -61,7 +95,7 @@ func (p *ExampleSimple) Best(v []float64) string {
 
 func (p *ExampleSimple) Goal(v []float64) bool {
 
-	if v[0] < 0.01 {
+	if v[0] > 0.95 {
 		return true
 	}
 
@@ -74,7 +108,7 @@ func ExampleSimpleApp() {
 
 	flag.Parse()
 
-	app.Run(&ExampleSimple{}, *cfgFile)
+	app.Run(&ExampleSimple{}, *cfgFile, true)
 
 }
 
@@ -97,13 +131,12 @@ func ExampleSimpleTry() {
 		log.Panicln(err)
 	}
 
-	l := lab.New(&ExampleSimple{})
+	l := lab.New(&ExampleSimple{}, false)
 
 	if err = l.Import(b); err != nil {
 		log.Panicln(err)
 	}
 
-	fmt.Println(l.Value([]float64{0.1, 0.2}))
-	fmt.Println(l.Volume([]float64{0.1, 0.2}))
+	fmt.Println(l.Value([]float64{0.1, 0.2, 0.3, 0.4}))
 
 }

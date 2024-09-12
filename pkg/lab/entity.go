@@ -9,6 +9,7 @@ type entity struct {
 	*model
 	mod, out *atom
 	result   [][]float64
+	origin   int
 }
 
 type house struct {
@@ -26,7 +27,7 @@ func (e *entity) exec(op *entity) {
 func (e *entity) last(shift int) []float64 {
 
 	result := []float64{}
-	if len(e.result) > 0 {
+	if len(e.result) > shift {
 		result = e.result[len(e.result)-1-shift]
 	}
 

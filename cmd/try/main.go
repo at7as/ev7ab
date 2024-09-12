@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/at7as/ev7ab/pkg/lib"
+	"fmt"
+	"math/rand/v2"
 )
 
 func main() {
 
-	lib.ExampleBezierTry()
+	fmt.Println(rand.Perm(10))
 
 }
