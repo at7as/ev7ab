@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/jroimartin/gocui"
 )
@@ -217,7 +218,11 @@ func (c *setupItemBox) enter(_ *gocui.Gui, _ *gocui.View) error {
 		app.c.labfile = value
 	case "In":
 		app.s.setup.set(c.key, value)
-		app.c.in, _ = strconv.Atoi(value)
+		app.c.in = []int{}
+		for _, str := range strings.Split(value, " ") {
+			v, _ := strconv.Atoi(str)
+			app.c.in = append(app.c.in, v)
+		}
 	case "Out":
 		app.s.setup.set(c.key, value)
 		app.c.out, _ = strconv.Atoi(value)

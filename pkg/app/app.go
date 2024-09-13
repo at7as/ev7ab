@@ -9,6 +9,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/at7as/ev7ab/pkg/lab"
@@ -26,8 +27,10 @@ type application struct {
 }
 
 type config struct {
-	cfgfile, labfile string
-	in, out          int
+	cfgfile string
+	labfile string
+	in      []int
+	out     int
 }
 
 type state struct {
@@ -62,7 +65,7 @@ func createApplication(prod lab.Producer, cfgFile string, debug bool) {
 	app.c = config{
 		cfgfile: cfgFile,
 		labfile: "./ev.lab",
-		in:      2,
+		in:      []int{2},
 		out:     2,
 	}
 
@@ -309,7 +312,11 @@ func (a *application) loadConfig() error {
 					a.c.labfile = vv
 				case "In":
 					a.s.setup.set(kk, vv)
-					a.c.in, _ = strconv.Atoi(vv)
+					a.c.in = []int{}
+					for _, str := range strings.Split(vv, " ") {
+						value, _ := strconv.Atoi(str)
+						a.c.in = append(a.c.in, value)
+					}
 				case "Out":
 					a.s.setup.set(kk, vv)
 					a.c.out, _ = strconv.Atoi(vv)

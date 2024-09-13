@@ -35,7 +35,7 @@ type project struct {
 	value func(*entity) []float64
 	age   int
 	goal  *entity
-	// step  int
+	ev1   int
 }
 
 type layout [][]Node
@@ -174,11 +174,59 @@ func (p *project) generation() {
 func (p *project) generate(r *rand.Rand, h *house, index int) {
 
 	mod := p.pool.mod.Get().(*atom)
+
 	for range p.mod {
 		mod.v = append(mod.v, r.Float64())
 	}
 
-	h.e[index] = p.spawn(mod, make([][]float64, 0), 0)
+	h.e[index] = p.spawn(mod, [][]float64{}, 0)
+
+	p.wg.Done()
+
+}
+
+func (p *project) mutate(r *rand.Rand, e *entity, h *house, index int, origin int) {
+
+	mod := e.mod.clone(p.pool.mod)
+
+	for _, i := range p.randomi(r) {
+		mod.v[i] = max(0.0, min(1.0, mod.v[i]+0.1*(r.Float64()-0.5)))
+	}
+
+	h.e[index] = p.spawn(mod, e.result, origin)
+
+	p.wg.Done()
+
+}
+
+func (p *project) variate(r *rand.Rand, e *entity, h *house, index int, origin int) {
+
+	mod := e.mod.clone(p.pool.mod)
+
+	for _, i := range p.randomi(r) {
+		mod.v[i] = r.Float64()
+	}
+
+	h.e[index] = p.spawn(mod, e.result, origin)
+
+	p.wg.Done()
+
+}
+
+func (p *project) combine(r *rand.Rand, e1 *entity, e2 *entity, h *house, index int, origin int) {
+
+	mod := e1.mod.clone(p.pool.mod)
+
+	for _, i := range p.randomi(r) {
+		mod.v[i] = e2.mod.v[i]
+	}
+
+	hr := &house{[]*entity{e1, e2}}
+	sort.SliceStable(hr.e, func(i, j int) bool {
+		return p.lab.prod.Compare(hr.e[i].last(0), hr.e[j].last(0))
+	})
+
+	h.e[index] = p.spawn(mod, hr.e[0].result, origin)
 
 	p.wg.Done()
 
@@ -270,10 +318,12 @@ func (p *project) evolution() {
 		e.origin = 1
 	}
 
+	ev1 := 0
 	if len(he.e) < p.size/2 {
 
 		for _, e := range p.ev {
 			if len(he.e) < p.size {
+				ev1++
 				he.e = append(he.e, e)
 			} else {
 				e.atomize()
@@ -305,6 +355,9 @@ func (p *project) evolution() {
 		h := &house{make([]*entity, 0, p.size)}
 		for _, e := range he.e {
 			if counter[e.origin] > 0 {
+				if e.origin == 1 {
+					ev1++
+				}
 				h.e = append(h.e, e)
 				counter[e.origin]--
 			} else {
@@ -315,6 +368,7 @@ func (p *project) evolution() {
 		p.ev = h.e
 
 	}
+	p.ev1 = ev1
 
 	p.achieve()
 
@@ -342,68 +396,6 @@ func (p *project) evolution() {
 		}
 
 	}
-
-}
-
-func (p *project) mutate(r *rand.Rand, e *entity, h *house, index int, origin int) {
-
-	mod := e.mod.clone(p.pool.mod)
-
-	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-1)]
-	for _, numi := range num {
-		n := p.model[numi+1]
-		numv := r.Perm(n.modc)[:1+rintn(r, n.modc-1)]
-		for _, i := range numv {
-			mod.v[n.mods+i] = clamp(mod.v[n.mods+i] + 0.1*(r.Float64()-0.5))
-		}
-	}
-
-	h.e[index] = p.spawn(mod, e.result, origin)
-
-	p.wg.Done()
-
-}
-
-func (p *project) variate(r *rand.Rand, e *entity, h *house, index int, origin int) {
-
-	mod := e.mod.clone(p.pool.mod)
-
-	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-1)]
-	for _, numi := range num {
-		n := p.model[numi+1]
-		numv := r.Perm(n.modc)[:1+rintn(r, n.modc-1)]
-		for _, i := range numv {
-			mod.v[n.mods+i] = r.Float64()
-		}
-	}
-
-	h.e[index] = p.spawn(mod, e.result, origin)
-
-	p.wg.Done()
-
-}
-
-func (p *project) combine(r *rand.Rand, e1 *entity, e2 *entity, h *house, index int, origin int) {
-
-	mod := e1.mod.clone(p.pool.mod)
-
-	num := r.Perm(len(p.model) - 1)[:1+rintn(r, len(p.model)-1)]
-	for _, numi := range num {
-		n := p.model[numi+1]
-		numv := r.Perm(n.modc)[:1+rintn(r, n.modc-1)]
-		for _, i := range numv {
-			mod.v[n.mods+i] = e2.mod.v[n.mods+i]
-		}
-	}
-
-	hr := &house{[]*entity{e1, e2}}
-	sort.SliceStable(hr.e, func(i, j int) bool {
-		return p.lab.prod.Compare(hr.e[i].last(0), hr.e[j].last(0))
-	})
-
-	h.e[index] = p.spawn(mod, hr.e[0].result, origin)
-
-	p.wg.Done()
 
 }
 
@@ -489,19 +481,32 @@ func (p *project) stat() (int, int, int, string, bool) {
 		result = p.ev[0].last(0)
 	}
 
-	return len(p.gen), len(p.ev), p.age, p.lab.prod.Best(result), p.goal != nil
+	return len(p.gen), p.ev1, p.age, p.lab.prod.Best(result), p.goal != nil
 }
 
-func clamp(v float64) float64 {
+func (p *project) randomi(r *rand.Rand) []int {
 
-	return max(0.0, min(1.0, v))
-}
-
-func rintn(r *rand.Rand, v int) int {
-
-	if v < 2 {
-		return 0
+	nums := []int{}
+	for _, i := range r.Perm(len(p.model) - len(p.layout[0]))[:min(1, r.IntN(len(p.model)-len(p.layout[0])+1))] {
+		n := p.model[i+len(p.layout[0])]
+		for _, ii := range r.Perm(n.modc)[:min(1, r.IntN(n.modc+1))] {
+			nums = append(nums, n.mods+ii)
+		}
 	}
-	return r.IntN(v)
 
+	return nums
 }
+
+// func clamp(v float64) float64 {
+
+// 	return max(0.0, min(1.0, v))
+// }
+
+// func rintn(r *rand.Rand, v int) int {
+
+// 	if v < 2 {
+// 		return 0
+// 	}
+// 	return r.IntN(v)
+
+// }

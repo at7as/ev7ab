@@ -57,8 +57,8 @@ func execDefault(e *entity, in []float64) *entity {
 	e.out.v = e.out.v[:0]
 	e.out.v = append(e.out.v, in...)
 	mod := 0
-	for i, n := range *e.model {
-		if i > 0 {
+	for _, n := range *e.model {
+		if len(n.Src) > 0 {
 			for range n.Out {
 				v := 0.0
 				for _, index := range n.Src {
@@ -80,8 +80,8 @@ func execCustom(e *entity, in []float64) *entity {
 	e.out.v = e.out.v[:0]
 	e.out.v = append(e.out.v, in...)
 	mod := 0
-	for i, n := range *e.model {
-		if i > 0 {
+	for _, n := range *e.model {
+		if len(n.Src) > 0 {
 			for range n.Out {
 				v := make([]float64, 0, int(n.in))
 				for _, index := range n.Src {

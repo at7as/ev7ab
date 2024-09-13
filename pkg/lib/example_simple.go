@@ -64,11 +64,6 @@ func (p *ExampleSimple) Produce(n lab.Next, op lab.Next) []float64 {
 	return []float64{float64(total) / p.s}
 }
 
-func (p *ExampleSimple) Challange(n1 lab.Next, n2 lab.Next) []float64 {
-
-	return []float64{}
-}
-
 func (p *ExampleSimple) Compare(a, b []float64) bool {
 
 	return a[0] > b[0]

@@ -194,20 +194,9 @@ func (l *Lab) ProjectDeactivate(id int) {
 // ProjectValue ...
 func (l *Lab) ProjectValue(id int, in []float64) []float64 {
 
-	var e *entity
 	if len(l.s.ev[id].ev) > 0 {
-		e = l.s.ev[id].ev[0]
+		e := l.s.ev[id].ev[0]
 		return l.s.ev[id].exec(e, in).project.value(e)
-	}
-
-	return []float64{}
-}
-
-// ProjectDump ...
-func (l *Lab) ProjectDump(id int) []float64 {
-
-	if len(l.s.ev[id].ev) > 0 {
-		return l.s.ev[id].ev[0].mod.v
 	}
 
 	return []float64{}
@@ -282,11 +271,12 @@ func (l *Lab) achieve() {
 		}
 	}
 
-	sort.SliceStable(g, func(i, j int) bool {
-		return l.prod.Compare(g[i].last(0), g[j].last(0))
-	})
-
 	if len(g) > 0 {
+
+		sort.SliceStable(g, func(i, j int) bool {
+			return l.prod.Compare(g[i].last(0), g[j].last(0))
+		})
+
 		l.s.goal = g[0]
 	}
 

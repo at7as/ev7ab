@@ -28,7 +28,7 @@ func newNode(size int, source []position) *model {
 	return &model{size: size, source: source}
 }
 
-func newProjectModel(o *project, in, out int) *model {
+func newProjectModel(o *project, in []int, out int) *model {
 
 	m := newModel(2)
 	if o != nil {
@@ -36,7 +36,9 @@ func newProjectModel(o *project, in, out int) *model {
 	} else {
 		m.addModel(nil)
 		m.addModel(nil)
-		m.model[0].addModel(newNode(in, nil))
+		for _, i := range in {
+			m.model[0].addModel(newNode(i, nil))
+		}
 		m.model[1].addModel(newNode(out, []position{{0, 0}}))
 	}
 	m.measure()

@@ -29,11 +29,6 @@ func (p *ExampleDigits) Produce(n lab.Next, op lab.Next) []float64 {
 	return []float64{d, r[0]}
 }
 
-func (p *ExampleDigits) Challange(n1 lab.Next, n2 lab.Next) []float64 {
-
-	return []float64{}
-}
-
 func (p *ExampleDigits) Compare(a, b []float64) bool {
 	return a[0] < b[0]
 }

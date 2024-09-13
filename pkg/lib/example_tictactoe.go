@@ -25,11 +25,6 @@ func (p *ExampleTictactoe) Produce(n lab.Next, op lab.Next) []float64 {
 	return []float64{d, r[0]}
 }
 
-func (p *ExampleTictactoe) Challange(n1 lab.Next, n2 lab.Next) []float64 {
-
-	return []float64{}
-}
-
 func (p *ExampleTictactoe) Compare(a, b []float64) bool {
 	return a[0] < b[0]
 }
