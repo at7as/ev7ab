@@ -1,0 +1,7 @@
+{
+  "app": {
+    "LabFile": "./test/example_track/ev.lab",
+    "In": "2 2 2 2 1",
+    "Out": "1"
+  }
+}

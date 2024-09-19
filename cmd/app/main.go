@@ -6,6 +6,6 @@ import (
 
 func main() {
 
-	lib.ExampleSimpleApp()
+	lib.ExampleTrackApp()
 
 }

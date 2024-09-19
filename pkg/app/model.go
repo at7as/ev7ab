@@ -39,7 +39,7 @@ func newProjectModel(o *project, in []int, out int) *model {
 		for _, i := range in {
 			m.model[0].addModel(newNode(i, nil))
 		}
-		m.model[1].addModel(newNode(out, []position{{0, 0}}))
+		m.model[1].addModel(newNode(out, nil))
 	}
 	m.measure()
 

@@ -1,12 +1,9 @@
 package main
 
-import (
-	"fmt"
-	"math/rand/v2"
-)
+import "github.com/at7as/ev7ab/pkg/lib"
 
 func main() {
 
-	fmt.Println(rand.Perm(10))
+	lib.ExampleTrackTry(1)
 
 }

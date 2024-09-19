@@ -1,9 +1,5 @@
 package lib
 
-// tic tac toe
-// digits
-// bezier
-
 import (
 	"fmt"
 	"math"
