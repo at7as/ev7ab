@@ -13,3 +13,21 @@ type Producer interface {
 
 // Next ...
 type Next func([]float64) []float64
+
+// IndexOfMax ...
+func IndexOfMax(v []float64) int {
+
+	index := 0
+	if len(v) == 0 {
+		return index
+	}
+	vmax := v[0]
+	for i, vv := range v {
+		if vv > vmax {
+			vmax = vv
+			index = i
+		}
+	}
+
+	return index
+}

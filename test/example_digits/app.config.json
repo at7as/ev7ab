@@ -1,7 +1,7 @@
 {
   "app": {
     "LabFile": "./test/example_digits/ev.lab",
-    "In": "256",
-    "Out": "10"
+    "In": "784",
+    "Out": "1"
   }
 }
