@@ -1,5 +1,5 @@
 run:
-	@go run ./cmd/app --config=./test/example_digits/app.config.json
+	@go run ./cmd/app --config=./test/example_tictactoe/app.config.json
 
 build-app:
 	@go build -o ./build/ ./cmd/app

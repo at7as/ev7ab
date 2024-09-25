@@ -447,7 +447,7 @@ func (a *application) importProjects() {
 			draft:    nil,
 			selected: false,
 		}
-
+		p.draft = p.model
 		p.refine()
 		p.model.measure()
 		p.stat.size = p.model.size

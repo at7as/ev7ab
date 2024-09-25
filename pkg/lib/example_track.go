@@ -78,7 +78,7 @@ func (p *ExampleTrack) Setup(key, value string) error {
 	return nil
 }
 
-func (p *ExampleTrack) Produce(n lab.Next, op lab.Next) []float64 {
+func (p *ExampleTrack) Produce(n lab.Next, _ lab.Next, _ []float64) []float64 {
 
 	tt := 0.5
 	x0 := 0.0
@@ -110,11 +110,6 @@ func (p *ExampleTrack) Produce(n lab.Next, op lab.Next) []float64 {
 	return []float64{out}
 }
 
-func (p *ExampleTrack) Compare(a, b []float64) bool {
-
-	return a[0] > b[0]
-}
-
 func (p *ExampleTrack) Validate(r []float64) bool {
 
 	if r[0] < 90.0 {
@@ -122,6 +117,11 @@ func (p *ExampleTrack) Validate(r []float64) bool {
 	}
 
 	return true
+}
+
+func (p *ExampleTrack) Compare(a, b []float64) bool {
+
+	return a[0] > b[0]
 }
 
 func (p *ExampleTrack) Best(v []float64) string {

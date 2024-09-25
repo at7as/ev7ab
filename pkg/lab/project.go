@@ -401,28 +401,29 @@ func (p *project) evolution() {
 
 func (p *project) production(h *house) {
 
-	p.wg.Add(len(h.e))
 	if p.lab.c.Duel {
-		if len(h.e) > 1 {
-			for i, e := range h.e {
-				last := len(h.e) - 1
-				if i != last {
-					go e.exec(h.e[i+1])
-				} else {
-					go e.exec(h.e[0])
-				}
-			}
-		}
+
+		p.challenge(h)
+
 	} else {
+
+		p.wg.Add(len(h.e))
 		for _, e := range h.e {
 			go e.exec(nil)
 		}
+		p.wg.Wait()
+
 	}
-	p.wg.Wait()
+
+	p.validate(h)
+
+}
+
+func (p *project) reduce(h *house) {
 
 	he := make([]*entity, 0, len(h.e))
 	for _, e := range h.e {
-		if p.lab.prod.Validate(e.last(0)) {
+		if p.lab.prod.Compare(e.last(0), e.last(1)) {
 			he = append(he, e)
 		} else {
 			e.atomize()
@@ -432,11 +433,23 @@ func (p *project) production(h *house) {
 
 }
 
-func (p *project) reduce(h *house) {
+func (p *project) challenge(h *house) {
+
+	for _, e := range h.e {
+		last := []float64{}
+		for _, op := range h.e {
+			last = e.project.lab.prod.Produce(next(e), next(op), last)
+		}
+		e.result = append(e.result, last)
+	}
+
+}
+
+func (p *project) validate(h *house) {
 
 	he := make([]*entity, 0, len(h.e))
 	for _, e := range h.e {
-		if p.lab.prod.Compare(e.last(0), e.last(1)) {
+		if p.lab.prod.Validate(e.last(0)) {
 			he = append(he, e)
 		} else {
 			e.atomize()
@@ -496,17 +509,3 @@ func (p *project) randomi(r *rand.Rand) []int {
 
 	return nums
 }
-
-// func clamp(v float64) float64 {
-
-// 	return max(0.0, min(1.0, v))
-// }
-
-// func rintn(r *rand.Rand, v int) int {
-
-// 	if v < 2 {
-// 		return 0
-// 	}
-// 	return r.IntN(v)
-
-// }

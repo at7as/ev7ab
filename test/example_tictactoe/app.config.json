@@ -1,0 +1,7 @@
+{
+  "app": {
+    "LabFile": "./test/example_tictactoe/ev.lab",
+    "In": "9 9",
+    "Out": "9"
+  }
+}

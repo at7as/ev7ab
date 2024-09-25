@@ -4,6 +4,6 @@ import "github.com/at7as/ev7ab/pkg/lib"
 
 func main() {
 
-	lib.ExampleDigitsTestDraw()
+	lib.ExampleTictactoeTry(0)
 
 }

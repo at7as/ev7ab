@@ -18,7 +18,7 @@ type house struct {
 
 func (e *entity) exec(op *entity) {
 
-	e.result = append(e.result, e.project.lab.prod.Produce(next(e), next(op)))
+	e.result = append(e.result, e.project.lab.prod.Produce(next(e), next(op), e.last(0)))
 
 	e.project.wg.Done()
 

@@ -44,7 +44,7 @@ func (p *ExampleSimple) Setup(key, value string) error {
 	return nil
 }
 
-func (p *ExampleSimple) Produce(n lab.Next, op lab.Next) []float64 {
+func (p *ExampleSimple) Produce(n lab.Next, _ lab.Next, _ []float64) []float64 {
 
 	total := 0
 	for i, in := range p.t {
@@ -64,11 +64,6 @@ func (p *ExampleSimple) Produce(n lab.Next, op lab.Next) []float64 {
 	return []float64{float64(total) / p.s}
 }
 
-func (p *ExampleSimple) Compare(a, b []float64) bool {
-
-	return a[0] > b[0]
-}
-
 func (p *ExampleSimple) Validate(r []float64) bool {
 
 	if r[0] < 0.5 {
@@ -76,6 +71,11 @@ func (p *ExampleSimple) Validate(r []float64) bool {
 	}
 
 	return true
+}
+
+func (p *ExampleSimple) Compare(a, b []float64) bool {
+
+	return a[0] > b[0]
 }
 
 func (p *ExampleSimple) Best(v []float64) string {

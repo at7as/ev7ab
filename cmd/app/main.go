@@ -6,6 +6,6 @@ import (
 
 func main() {
 
-	lib.ExampleDigitsApp()
+	lib.ExampleTictactoeApp()
 
 }
