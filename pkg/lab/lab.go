@@ -1,3 +1,4 @@
+// Package lab provides another genetic algorithm.
 package lab
 
 import (
@@ -10,19 +11,28 @@ import (
 	"sync"
 )
 
-// Lab ...
+// Lab provides Lab data.
 type Lab struct {
 	prod Producer
 	c    Config
 	s    state
 }
 
-// Config ...
+// Config provides Lab configuration.
 type Config struct {
-	Size  int
-	Aggr  string
-	Proc  string
-	Goal  bool
+	// Size is maximum size of generation pool and every evolution method.
+	Size int
+	// Aggr is code of Aggregator lab function.
+	// Builtin functions is "sum", "avg", "min", "max".
+	// Default is "avg".
+	Aggr string
+	// Proc is code of Processor lab function.
+	// Builtin functions is "linear", "binary", "relu", "lrelu", "silu", "sigmoid", "softplus", "softsign", "tanh", "arctan", "sinusoid", "gaussian".
+	// Default is "linear".
+	Proc string
+	// Goal option if true, than Lab will stop examine when target is reached.
+	Goal bool
+	// Duel option if true, than Lab will use challenge mode when produce result.
 	Duel  bool
 	debug bool
 }
@@ -39,7 +49,7 @@ type state struct {
 	debugfile *os.File
 }
 
-// New ...
+// New returns new *Lab.
 func New(prod Producer, debug bool) *Lab {
 
 	c := Config{
@@ -73,7 +83,7 @@ func New(prod Producer, debug bool) *Lab {
 	return &Lab{prod, c, s}
 }
 
-// Close ...
+// Close soft closes Lab.
 func (l *Lab) Close() error {
 
 	if l.s.debugfile != nil {
@@ -83,7 +93,7 @@ func (l *Lab) Close() error {
 	return nil
 }
 
-// Setup ...
+// Setup applies new Config to Lab.
 func (l *Lab) Setup(c Config) error {
 
 	newSize := l.c.Size == c.Size
@@ -113,19 +123,19 @@ func (l *Lab) Setup(c Config) error {
 	return nil
 }
 
-// GetConfig ...
+// GetConfig returns current Config of Lab.
 func (l *Lab) GetConfig() Config {
 
 	return l.c
 }
 
-// GetExec ...
+// GetExec returns exec state of Lab.
 func (l *Lab) GetExec() bool {
 
 	return l.s.exec
 }
 
-// GetProjects ...
+// GetProjects returns slice of projects id.
 func (l *Lab) GetProjects() []int {
 
 	list := make([]int, 0, len(l.s.ev))
@@ -136,7 +146,7 @@ func (l *Lab) GetProjects() []int {
 	return list
 }
 
-// ProjectAdd ...
+// ProjectAdd adds new project. Returns id of new project.
 func (l *Lab) ProjectAdd(layout [][]Node) int {
 
 	l.ProjectSet(l.s.id, layout)
@@ -145,53 +155,55 @@ func (l *Lab) ProjectAdd(layout [][]Node) int {
 	return l.s.id - 1
 }
 
-// ProjectSet ...
+// ProjectSet updates project layout by id.
+// Reset all data of project when update layout.
 func (l *Lab) ProjectSet(id int, layout [][]Node) {
 
 	l.s.ev[id] = newProject(l, id, layout)
 
 }
 
-// ProjectStatus ...
+// ProjectStatus status of project.
 func (l *Lab) ProjectStatus(id int) bool {
 
 	return l.s.ev[id].active
 }
 
-// ProjectStat ...
+// ProjectStat returns current stats of project:
+// generated count, evoluted count, age, best, goal state
 func (l *Lab) ProjectStat(id int) (int, int, int, string, bool) {
 
 	return l.s.ev[id].stat()
 }
 
-// ProjectLayout ...
+// ProjectLayout returns layout project by id.
 func (l *Lab) ProjectLayout(id int) [][]Node {
 
 	return l.s.ev[id].layout
 }
 
-// ProjectDelete ...
+// ProjectDelete delete project by id.
 func (l *Lab) ProjectDelete(id int) {
 
 	delete(l.s.ev, id)
 
 }
 
-// ProjectActivate ...
+// ProjectActivate activate project by id.
 func (l *Lab) ProjectActivate(id int) {
 
 	l.s.ev[id].activate()
 
 }
 
-// ProjectDeactivate ...
+// ProjectDeactivate deactivate project by id.
 func (l *Lab) ProjectDeactivate(id int) {
 
 	l.s.ev[id].deactivate()
 
 }
 
-// ProjectValue ...
+// ProjectValue returns out node values of top entity project selected by id.
 func (l *Lab) ProjectValue(id int, in []float64) []float64 {
 
 	if len(l.s.ev[id].ev) > 0 {
@@ -202,7 +214,7 @@ func (l *Lab) ProjectValue(id int, in []float64) []float64 {
 	return []float64{}
 }
 
-// Run ...
+// Run used for run Lab examine.
 func (l *Lab) Run() {
 
 	l.s.run = true
@@ -210,7 +222,7 @@ func (l *Lab) Run() {
 
 }
 
-// Stop ...
+// Stop used for soft stop Lab examine.
 func (l *Lab) Stop() {
 
 	l.s.run = false
@@ -235,13 +247,13 @@ func (l *Lab) examine() {
 
 }
 
-// Value ...
+// Value returns out node values of goal entity.
 func (l *Lab) Value(in []float64) []float64 {
 
 	return l.s.goal.project.exec(l.s.goal, in).project.value(l.s.goal)
 }
 
-// Volume ...
+// Volume returns out node values of goal entities all projects.
 func (l *Lab) Volume(in []float64) [][]float64 {
 
 	vol := make([][]float64, 0)
@@ -282,11 +294,11 @@ func (l *Lab) achieve() {
 
 }
 
-// Export ...
+// Export returns current state of Lab encoded by gob.
 func (l *Lab) Export() ([]byte, error) {
 
 	if l.s.exec {
-		return []byte{}, fmt.Errorf("lab is not finish execution")
+		return []byte{}, fmt.Errorf("Lab is not finish execution")
 	}
 
 	m := memory{
@@ -324,7 +336,7 @@ func (l *Lab) Export() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// Import ...
+// Import used for importing data created by Export function.
 func (l *Lab) Import(data []byte) error {
 
 	if l.s.exec {

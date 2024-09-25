@@ -9,9 +9,11 @@ import (
 	"sync"
 )
 
-// Node ...
+// Node provides interchange of node settings between Lab and external module.
 type Node struct {
+	// Src is a slice of links to source nodes.
 	Src [][2]int
+	// Out is a size of node.
 	Out int
 }
 

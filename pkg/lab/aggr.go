@@ -7,7 +7,7 @@ import (
 	"gonum.org/v1/gonum/stat"
 )
 
-// Aggregator ...
+// Aggregator provides function that aggregates values from out of the node.
 type Aggregator func([]float64) float64
 
 func sumAggr(in []float64) float64 {
@@ -37,7 +37,9 @@ var aggrMap map[string]Aggregator = map[string]Aggregator{
 	"max": maxAggr,
 }
 
-// SetAggregator ...
+// SetAggregator adds or sets custom aggregation function to functions map.
+// To activate custom aggregation function need to set value of code to Config.Aggr and pass Config to Lab.Setup.
+// May be used to overwrite builtin functions.
 func SetAggregator(code string, aggr Aggregator) {
 
 	aggrMap[code] = aggr

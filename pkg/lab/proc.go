@@ -2,7 +2,7 @@ package lab
 
 import "math"
 
-// Processor ...
+// Processor provides function that processed values from out of the last node.
 type Processor func(float64) float64
 
 // (-*,*)
@@ -104,7 +104,9 @@ var procMap map[string]Processor = map[string]Processor{
 	"gaussian": gaussianProc,
 }
 
-// SetProcessor ...
+// SetProcessor adds or sets custom processor function to functions map.
+// To activate custom processor function need to set value of code to Config.Proc and pass Config to Lab.Setup.
+// May be used to overwrite builtin functions.
 func SetProcessor(code string, proc Processor) {
 
 	procMap[code] = proc

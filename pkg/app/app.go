@@ -1,3 +1,4 @@
+// Package app provides basic usage of Lab module with CUI.
 package app
 
 import (
@@ -494,7 +495,7 @@ func (a *application) update(f func(g *gocui.Gui) error) {
 
 }
 
-// Run ...
+// Run used for starting application with *Producer and configuration file path.
 func Run(prod lab.Producer, appConfigFile string, debug bool) {
 
 	if gui, err = gocui.NewGui(gocui.OutputNormal); err != nil {
