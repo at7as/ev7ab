@@ -1,6 +1,6 @@
 {
   "app": {
-    "LabFile": "./test/example_digits/ev.lab",
+    "LabFile": "./examples/digits/ev.lab",
     "In": "784",
     "Out": "1"
   }

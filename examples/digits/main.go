@@ -2,7 +2,7 @@
 // Use of this code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package lib
+package main
 
 import (
 	"compress/gzip"
@@ -13,8 +13,8 @@ import (
 	"math"
 	"os"
 
-	"github.com/at7as/ev7ab/pkg/app"
-	"github.com/at7as/ev7ab/pkg/lab"
+	"github.com/at7as/ev7ab/app"
+	"github.com/at7as/ev7ab/lab"
 	"github.com/fogleman/gg"
 )
 
@@ -25,14 +25,14 @@ type ExampleDigits struct {
 
 func (p *ExampleDigits) Load(setup map[string]string) error {
 
-	ls, err := newLabelSet("./test/example_digits/t10k-labels-idx1-ubyte.gz")
+	ls, err := newLabelSet("./examples/digits/t10k-labels-idx1-ubyte.gz")
 	if err != nil {
 		log.Panicln(err)
 	}
 	p.ls = ls
 	p.ls.items = p.ls.items[:1000]
 
-	is, err := newImageSet("./test/example_digits/t10k-images-idx3-ubyte.gz")
+	is, err := newImageSet("./examples/digits/t10k-images-idx3-ubyte.gz")
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -92,24 +92,14 @@ func (p *ExampleDigits) Goal(v []float64) bool {
 	return false
 }
 
-func ExampleDigitsApp() {
+func try() {
 
-	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
-
-	flag.Parse()
-
-	app.Run(&ExampleDigits{}, *cfgFile, false)
-
-}
-
-func ExampleDigitsTestDraw() {
-
-	ls, err := newLabelSet("./test/example_digits/t10k-labels-idx1-ubyte.gz")
+	ls, err := newLabelSet("./examples/digits/t10k-labels-idx1-ubyte.gz")
 	if err != nil {
 		log.Panicln(err)
 	}
 
-	is, err := newImageSet("./test/example_digits/t10k-images-idx3-ubyte.gz")
+	is, err := newImageSet("./examples/digits/t10k-images-idx3-ubyte.gz")
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -126,7 +116,7 @@ func ExampleDigitsTestDraw() {
 			}
 		}
 	}
-	image.SavePNG("./test/example_digits/test_draw.png")
+	image.SavePNG("./examples/digits/test_draw.png")
 
 }
 
@@ -231,6 +221,21 @@ func (s *labelSet) parse() {
 	s.items = make([]int, s.header.Num)
 	for i := range s.header.Num {
 		s.items[i] = int(s.raw[i])
+	}
+
+}
+
+func main() {
+
+	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
+	runTry := flag.Bool("try", false, "try example result")
+
+	flag.Parse()
+
+	if *runTry {
+		try()
+	} else {
+		app.Run(&ExampleDigits{}, *cfgFile)
 	}
 
 }

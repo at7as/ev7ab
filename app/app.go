@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/at7as/ev7ab/pkg/lab"
+	"github.com/at7as/ev7ab/lab"
 	"github.com/jroimartin/gocui"
 )
 
@@ -62,7 +62,7 @@ const (
 	appWait
 )
 
-func createApplication(prod lab.Producer, cfgFile string, debug bool) {
+func createApplication(prod lab.Producer, cfgFile string) {
 
 	app = &application{}
 
@@ -76,7 +76,7 @@ func createApplication(prod lab.Producer, cfgFile string, debug bool) {
 	app.s = state{
 		status: appIdle,
 		prod:   prod,
-		lab:    lab.New(prod, debug),
+		lab:    lab.New(prod),
 		setup:  newDict(defaultSetup),
 		ev:     make([]*project, 0),
 	}
@@ -137,10 +137,6 @@ func (a *application) keybinding() error {
 }
 
 func (a *application) quit(_ *gocui.Gui, _ *gocui.View) error {
-
-	if err = a.s.lab.Close(); err != nil {
-		return err
-	}
 
 	return gocui.ErrQuit
 }
@@ -499,14 +495,14 @@ func (a *application) update(f func(g *gocui.Gui) error) {
 }
 
 // Run used for starting application with *Producer and configuration file path.
-func Run(prod lab.Producer, appConfigFile string, debug bool) {
+func Run(prod lab.Producer, appConfigFile string) {
 
 	if gui, err = gocui.NewGui(gocui.OutputNormal); err != nil {
 		log.Panicln(err)
 	}
 	defer gui.Close()
 
-	createApplication(prod, appConfigFile, debug)
+	createApplication(prod, appConfigFile)
 	if err = app.loadConfig(); err != nil {
 		log.Panicln(err)
 	}

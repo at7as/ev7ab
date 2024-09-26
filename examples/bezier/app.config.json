@@ -1,6 +1,6 @@
 {
   "app": {
-    "LabFile": "./test/example_bezier/ev.lab",
+    "LabFile": "./examples/bezier/ev.lab",
     "In": "12",
     "Out": "4"
   },

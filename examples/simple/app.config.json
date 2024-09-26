@@ -1,6 +1,6 @@
 {
   "app": {
-    "LabFile": "./test/example_simple/ev.lab",
+    "LabFile": "./examples/simple/ev.lab",
     "In": "1 1 1 1",
     "Out": "4"
   }

@@ -8,8 +8,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"log"
-	"os"
 	"sort"
 	"sync"
 )
@@ -36,64 +34,41 @@ type Config struct {
 	// Goal option if true, than Lab will stop examine when target is reached.
 	Goal bool
 	// Duel option if true, than Lab will use challenge mode when produce result.
-	Duel  bool
-	debug bool
+	Duel bool
 }
 
 type state struct {
-	aggr      Aggregator
-	proc      Processor
-	run       bool
-	exec      bool
-	id        int
-	ev        map[int]*project
-	goal      *entity
-	wg        *sync.WaitGroup
-	debugfile *os.File
+	aggr Aggregator
+	proc Processor
+	run  bool
+	exec bool
+	id   int
+	ev   map[int]*project
+	goal *entity
+	wg   *sync.WaitGroup
 }
 
 // New returns new *Lab.
-func New(prod Producer, debug bool) *Lab {
+func New(prod Producer) *Lab {
 
 	c := Config{
-		Size:  1000,
-		Aggr:  "avg",
-		Proc:  "linear",
-		Goal:  false,
-		Duel:  false,
-		debug: debug,
+		Size: 1000,
+		Aggr: "avg",
+		Proc: "linear",
+		Goal: false,
+		Duel: false,
 	}
 
 	s := state{
-		aggr:      nil,
-		proc:      nil,
-		run:       false,
-		id:        0,
-		ev:        make(map[int]*project),
-		wg:        &sync.WaitGroup{},
-		debugfile: nil,
-	}
-
-	if debug {
-		os.Remove("./lab.log")
-		f, err := os.OpenFile("./lab.log", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-		if err != nil {
-			log.Panicln(err)
-		}
-		s.debugfile = f
+		aggr: nil,
+		proc: nil,
+		run:  false,
+		id:   0,
+		ev:   make(map[int]*project),
+		wg:   &sync.WaitGroup{},
 	}
 
 	return &Lab{prod, c, s}
-}
-
-// Close soft closes Lab.
-func (l *Lab) Close() error {
-
-	if l.s.debugfile != nil {
-		return l.s.debugfile.Close()
-	}
-
-	return nil
 }
 
 // Setup applies new Config to Lab.

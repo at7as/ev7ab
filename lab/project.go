@@ -5,8 +5,6 @@
 package lab
 
 import (
-	"fmt"
-	"log"
 	"math"
 	"math/rand/v2"
 	"sort"
@@ -377,31 +375,6 @@ func (p *project) evolution() {
 	p.ev1 = ev1
 
 	p.achieve()
-
-	if p.lab.c.debug {
-
-		s := make([][]int, 9)
-		for i := range s {
-			s[i] = make([]int, 2)
-			s[i][0] = p.size
-		}
-		for i, e := range p.ev {
-			s[e.origin][0] = min(s[e.origin][0], i)
-			s[e.origin][1] = s[e.origin][1] + 1
-		}
-		gen, ev, age, best, goal := p.stat()
-		text := fmt.Sprintf("id:%v gen:%v ev:%v age:%v best:%s goal:%v", p.id, gen, ev, age, best, goal)
-		for i := range s {
-			if s[i][1] > 0 {
-				text += fmt.Sprintf(" %v:%v:%v", i, s[i][0], s[i][1])
-			}
-		}
-		text += "\n"
-		if _, err := p.lab.s.debugfile.WriteString(text); err != nil {
-			log.Panicln(err)
-		}
-
-	}
 
 }
 

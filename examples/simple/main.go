@@ -2,7 +2,7 @@
 // Use of this code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package lib
+package main
 
 import (
 	"compress/zlib"
@@ -14,8 +14,8 @@ import (
 	"math/rand/v2"
 	"os"
 
-	"github.com/at7as/ev7ab/pkg/app"
-	"github.com/at7as/ev7ab/pkg/lab"
+	"github.com/at7as/ev7ab/app"
+	"github.com/at7as/ev7ab/lab"
 	"gonum.org/v1/gonum/floats"
 )
 
@@ -101,19 +101,9 @@ func (p *ExampleSimple) Goal(v []float64) bool {
 	return false
 }
 
-func ExampleSimpleApp() {
+func try() {
 
-	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
-
-	flag.Parse()
-
-	app.Run(&ExampleSimple{}, *cfgFile, true)
-
-}
-
-func ExampleSimpleTry() {
-
-	f, err := os.Open("./test/example_simple/ev.lab")
+	f, err := os.Open("./examples/simple/ev.lab")
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -130,12 +120,27 @@ func ExampleSimpleTry() {
 		log.Panicln(err)
 	}
 
-	l := lab.New(&ExampleSimple{}, false)
+	l := lab.New(&ExampleSimple{})
 
 	if err = l.Import(b); err != nil {
 		log.Panicln(err)
 	}
 
 	fmt.Println(l.Value([]float64{0.1, 0.2, 0.3, 0.4}))
+
+}
+
+func main() {
+
+	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
+	runTry := flag.Bool("try", false, "try example result")
+
+	flag.Parse()
+
+	if *runTry {
+		try()
+	} else {
+		app.Run(&ExampleSimple{}, *cfgFile)
+	}
 
 }

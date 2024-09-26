@@ -1,5 +1,4 @@
-// Restruct project
-// Readme for every module
+// Readme for lab and app
 // This readme
 
 // Todo:

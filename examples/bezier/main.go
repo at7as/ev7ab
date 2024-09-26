@@ -2,7 +2,7 @@
 // Use of this code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package lib
+package main
 
 import (
 	"compress/zlib"
@@ -15,8 +15,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/at7as/ev7ab/pkg/app"
-	"github.com/at7as/ev7ab/pkg/lab"
+	"github.com/at7as/ev7ab/app"
+	"github.com/at7as/ev7ab/lab"
 )
 
 const sizeBezier int = 10
@@ -159,19 +159,9 @@ func (p point) distance(d point) float64 {
 	return math.Sqrt(math.Pow(d.x-p.x, 2) + math.Pow(d.y-p.y, 2))
 }
 
-func ExampleBezierApp() {
+func try() {
 
-	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
-
-	flag.Parse()
-
-	app.Run(&ExampleBezier{}, *cfgFile, true)
-
-}
-
-func ExampleBezierTry() {
-
-	f, err := os.Open("./test/example_bezier/ev.lab")
+	f, err := os.Open("./examples/bezier/ev.lab")
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -188,7 +178,7 @@ func ExampleBezierTry() {
 		log.Panicln(err)
 	}
 
-	l := lab.New(&ExampleBezier{}, false)
+	l := lab.New(&ExampleBezier{})
 
 	if err = l.Import(b); err != nil {
 		log.Panicln(err)
@@ -216,5 +206,20 @@ func ExampleBezierTry() {
 	}
 
 	fmt.Println(l.Value(t))
+
+}
+
+func main() {
+
+	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
+	runTry := flag.Bool("try", false, "try example result")
+
+	flag.Parse()
+
+	if *runTry {
+		try()
+	} else {
+		app.Run(&ExampleBezier{}, *cfgFile)
+	}
 
 }

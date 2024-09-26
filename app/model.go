@@ -7,7 +7,7 @@ package app
 import (
 	"slices"
 
-	"github.com/at7as/ev7ab/pkg/lab"
+	"github.com/at7as/ev7ab/lab"
 )
 
 type model struct {

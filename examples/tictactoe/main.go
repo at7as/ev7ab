@@ -2,7 +2,7 @@
 // Use of this code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package lib
+package main
 
 import (
 	"compress/zlib"
@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/at7as/ev7ab/pkg/app"
-	"github.com/at7as/ev7ab/pkg/lab"
+	"github.com/at7as/ev7ab/app"
+	"github.com/at7as/ev7ab/lab"
 	"github.com/nsf/termbox-go"
 )
 
@@ -130,16 +130,6 @@ func (p *ExampleTictactoe) Goal(v []float64) bool {
 	return false
 }
 
-func ExampleTictactoeApp() {
-
-	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
-
-	flag.Parse()
-
-	app.Run(&ExampleTictactoe{}, *cfgFile, true)
-
-}
-
 func resultValidate(in []float64, i int) bool {
 
 	if in[i] > 0.0 || in[9+i] > 0.0 {
@@ -165,9 +155,9 @@ func resultCheck(in []float64) bool {
 	return false
 }
 
-func ExampleTictactoeTry(id int) {
+func try(id int) {
 
-	f, err := os.Open("./test/example_tictactoe/ev.lab")
+	f, err := os.Open("./examples/tictactoe/ev.lab")
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -185,7 +175,7 @@ func ExampleTictactoeTry(id int) {
 	}
 
 	example := &ExampleTictactoe{id: id}
-	example.l = lab.New(example, false)
+	example.l = lab.New(example)
 	if err = example.l.Import(b); err != nil {
 		log.Panicln(err)
 	}
@@ -359,6 +349,21 @@ func printMsg(x, y int, msg string) {
 	for _, c := range msg {
 		termbox.SetChar(x, y, c)
 		x++
+	}
+
+}
+
+func main() {
+
+	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
+	runTry := flag.Bool("try", false, "try example result")
+
+	flag.Parse()
+
+	if *runTry {
+		try(0)
+	} else {
+		app.Run(&ExampleTictactoe{}, *cfgFile)
 	}
 
 }

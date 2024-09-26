@@ -1,4 +1,2 @@
-lab.log
-build/*
-test/**/*.lab
-test/example_digits/*.gz
+examples/digits/*.gz
+examples/**/*.lab

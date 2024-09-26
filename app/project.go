@@ -5,7 +5,7 @@
 package app
 
 import (
-	"github.com/at7as/ev7ab/pkg/lab"
+	"github.com/at7as/ev7ab/lab"
 )
 
 type project struct {

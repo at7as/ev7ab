@@ -2,7 +2,7 @@
 // Use of this code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package lib
+package main
 
 import (
 	"bufio"
@@ -18,8 +18,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/at7as/ev7ab/pkg/app"
-	"github.com/at7as/ev7ab/pkg/lab"
+	"github.com/at7as/ev7ab/app"
+	"github.com/at7as/ev7ab/lab"
 	"github.com/fogleman/gg"
 )
 
@@ -30,7 +30,7 @@ type ExampleTrack struct {
 
 func (p *ExampleTrack) Load(setup map[string]string) error {
 
-	f, err := os.Open("./test/example_track/track.json")
+	f, err := os.Open("./examples/track/track.json")
 	if err != nil {
 		return err
 	}
@@ -143,19 +143,9 @@ func (p *ExampleTrack) Goal(v []float64) bool {
 	return false
 }
 
-func ExampleTrackApp() {
+func try(id int) {
 
-	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
-
-	flag.Parse()
-
-	app.Run(&ExampleTrack{}, *cfgFile, true)
-
-}
-
-func ExampleTrackTry(id int) {
-
-	f, err := os.Open("./test/example_track/ev.lab")
+	f, err := os.Open("./examples/track/ev.lab")
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -172,7 +162,7 @@ func ExampleTrackTry(id int) {
 		log.Panicln(err)
 	}
 
-	l := lab.New(&ExampleTrack{}, false)
+	l := lab.New(&ExampleTrack{})
 
 	if err = l.Import(b); err != nil {
 		log.Panicln(err)
@@ -267,13 +257,13 @@ func ExampleTrackTry(id int) {
 	}
 	image.SetRGB(0, 1, 0)
 	image.Stroke()
-	image.SavePNG("./test/example_track/track_result.png")
+	image.SavePNG("./examples/track/track_result.png")
 
 }
 
-func ExampleTrackDraw() error {
+func trackDraw() error {
 
-	f, err := os.Open("./test/example_track/track.json")
+	f, err := os.Open("./examples/track/track.json")
 	if err != nil {
 		return err
 	}
@@ -318,14 +308,14 @@ func ExampleTrackDraw() error {
 	}
 	image.SetRGB(0, 0, 0)
 	image.Stroke()
-	image.SavePNG("./test/example_track/track.png")
+	image.SavePNG("./examples/track/track.png")
 
 	return nil
 }
 
-func ExampleTrackObjParse() error {
+func trackObjParse() error {
 
-	f, err := os.Open("./test/example_track/track.obj")
+	f, err := os.Open("./examples/track/track.obj")
 	if err != nil {
 		return err
 	}
@@ -436,4 +426,19 @@ func lerp(x0, y0, x1, y1, t float64) (float64, float64) {
 	x := x0 + (x1-x0)*t
 	y := y0 + (y1-y0)*t
 	return x, y
+}
+
+func main() {
+
+	cfgFile := flag.String("config", "./app.config.json", "path to app config file")
+	runTry := flag.Bool("try", false, "try example result")
+
+	flag.Parse()
+
+	if *runTry {
+		try(0)
+	} else {
+		app.Run(&ExampleTrack{}, *cfgFile)
+	}
+
 }
