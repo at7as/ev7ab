@@ -2,12 +2,5 @@
 // Use of this code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
-
-import "github.com/at7as/ev7ab/pkg/lib"
-
-func main() {
-
-	lib.ExampleTictactoeTry(0)
-
-}
+// Package lib contains examples for app and lab.
+package lib
