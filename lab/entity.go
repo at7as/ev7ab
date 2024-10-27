@@ -11,9 +11,9 @@ import (
 type entity struct {
 	*project
 	*model
-	mod, out *atom
-	result   [][]float64
-	origin   int
+	mod, act, out *atom
+	result        [][]float64
+	origin        int
 }
 
 type house struct {
@@ -43,6 +43,9 @@ func (e *entity) atomize() {
 	e.mod.v = e.mod.v[:0]
 	e.project.pool.mod.Put(e.mod)
 
+	e.act.v = e.act.v[:0]
+	e.project.pool.act.Put(e.act)
+
 	e.out.v = e.out.v[:0]
 	e.project.pool.out.Put(e.out)
 
@@ -61,17 +64,19 @@ func execDefault(e *entity, in []float64) *entity {
 	e.out.v = e.out.v[:0]
 	e.out.v = append(e.out.v, in...)
 	mod := 0
+	act := 0
 	for _, n := range *e.model {
 		if len(n.Src) > 0 {
 			for range n.Out {
 				v := 0.0
 				for _, index := range n.Src {
 					for _, value := range e.out.v[index[0]:index[1]] {
-						v += qlinear(value, e.mod.v[mod])
+						v += value * e.mod.v[mod]
 						mod++
 					}
 				}
-				e.out.v = append(e.out.v, v/n.in)
+				e.out.v = append(e.out.v, qlinear(v/n.in, e.act.v[act]))
+				act++
 			}
 		}
 	}
@@ -110,9 +115,7 @@ func qlinear(v, m float64) float64 {
 func valueDefault(e *entity) []float64 {
 
 	out := make([]float64, 0)
-	for _, v := range e.out.v[len(e.out.v)-(*e.model)[len(*e.model)-1].Out:] {
-		out = append(out, v)
-	}
+	out = append(out, e.out.v[len(e.out.v)-(*e.model)[len(*e.model)-1].Out:]...)
 
 	return out
 }
@@ -139,9 +142,7 @@ func newAtom(size int) *atom {
 func (a *atom) clone(pool *sync.Pool) *atom {
 
 	c := pool.Get().(*atom)
-	for _, v := range a.v {
-		c.v = append(c.v, v)
-	}
+	c.v = append(c.v, a.v...)
 
 	return c
 }

@@ -25,9 +25,10 @@ type project struct {
 	active bool
 	layout
 	model
-	mod, out int
-	pool     struct {
+	mod, act, out int
+	pool          struct {
 		mod *sync.Pool
+		act *sync.Pool
 		out *sync.Pool
 	}
 	size  int
@@ -68,6 +69,9 @@ func newProject(lab *Lab, id int, layout [][]Node) *project {
 	p.pool.mod = &sync.Pool{
 		New: func() any { return newAtom(p.mod) },
 	}
+	p.pool.act = &sync.Pool{
+		New: func() any { return newAtom(p.act) },
+	}
 	p.pool.out = &sync.Pool{
 		New: func() any { return newAtom(p.out) },
 	}
@@ -90,6 +94,7 @@ func newProject(lab *Lab, id int, layout [][]Node) *project {
 func (p *project) compile() {
 
 	p.mod = 0
+	p.act = 0
 	p.out = 0
 	p.model = make(model, 0)
 	index := make([][]int, len(p.layout))
@@ -125,6 +130,13 @@ func (p *project) compile() {
 				modc: modc,
 			})
 
+		}
+	}
+
+	p.act = p.out
+	if len(p.layout) > 0 {
+		for _, n := range p.layout[0] {
+			p.act -= n.Out
 		}
 	}
 
@@ -178,12 +190,16 @@ func (p *project) generation() {
 func (p *project) generate(r *rand.Rand, h *house, index int) {
 
 	mod := p.pool.mod.Get().(*atom)
-
 	for range p.mod {
 		mod.v = append(mod.v, r.Float64())
 	}
 
-	h.e[index] = p.spawn(mod, [][]float64{}, 0)
+	act := p.pool.act.Get().(*atom)
+	for range p.act {
+		act.v = append(act.v, r.Float64())
+	}
+
+	h.e[index] = p.spawn(mod, act, [][]float64{}, 0)
 
 	p.wg.Done()
 
@@ -192,12 +208,16 @@ func (p *project) generate(r *rand.Rand, h *house, index int) {
 func (p *project) mutate(r *rand.Rand, e *entity, h *house, index int, origin int) {
 
 	mod := e.mod.clone(p.pool.mod)
-
 	for _, i := range p.randomi(r) {
 		mod.v[i] = max(0.0, min(1.0, mod.v[i]+0.1*(r.Float64()-0.5)))
 	}
 
-	h.e[index] = p.spawn(mod, e.result, origin)
+	act := e.act.clone(p.pool.act)
+	for _, i := range r.Perm(p.act)[:min(1, r.IntN(p.act))] {
+		act.v[i] = max(0.0, min(1.0, act.v[i]+0.01*(r.Float64()-0.5)))
+	}
+
+	h.e[index] = p.spawn(mod, act, e.result, origin)
 
 	p.wg.Done()
 
@@ -206,12 +226,16 @@ func (p *project) mutate(r *rand.Rand, e *entity, h *house, index int, origin in
 func (p *project) variate(r *rand.Rand, e *entity, h *house, index int, origin int) {
 
 	mod := e.mod.clone(p.pool.mod)
-
 	for _, i := range p.randomi(r) {
 		mod.v[i] = r.Float64()
 	}
 
-	h.e[index] = p.spawn(mod, e.result, origin)
+	act := e.act.clone(p.pool.act)
+	for _, i := range r.Perm(p.act)[:min(1, r.IntN(p.act))] {
+		act.v[i] = r.Float64()
+	}
+
+	h.e[index] = p.spawn(mod, act, e.result, origin)
 
 	p.wg.Done()
 
@@ -220,9 +244,13 @@ func (p *project) variate(r *rand.Rand, e *entity, h *house, index int, origin i
 func (p *project) combine(r *rand.Rand, e1 *entity, e2 *entity, h *house, index int, origin int) {
 
 	mod := e1.mod.clone(p.pool.mod)
-
 	for _, i := range p.randomi(r) {
 		mod.v[i] = e2.mod.v[i]
+	}
+
+	act := e1.act.clone(p.pool.act)
+	for _, i := range r.Perm(p.act)[:min(1, r.IntN(p.act))] {
+		act.v[i] = e2.act.v[i]
 	}
 
 	hr := &house{[]*entity{e1, e2}}
@@ -230,13 +258,13 @@ func (p *project) combine(r *rand.Rand, e1 *entity, e2 *entity, h *house, index 
 		return p.lab.prod.Compare(hr.e[i].last(0), hr.e[j].last(0))
 	})
 
-	h.e[index] = p.spawn(mod, hr.e[0].result, origin)
+	h.e[index] = p.spawn(mod, act, hr.e[0].result, origin)
 
 	p.wg.Done()
 
 }
 
-func (p *project) spawn(mod *atom, result [][]float64, origin int) *entity {
+func (p *project) spawn(mod *atom, act *atom, result [][]float64, origin int) *entity {
 
 	r := [][]float64{}
 	if len(result) > 0 {
@@ -249,6 +277,7 @@ func (p *project) spawn(mod *atom, result [][]float64, origin int) *entity {
 		project: p,
 		model:   &p.model,
 		mod:     mod,
+		act:     act,
 		out:     p.pool.out.Get().(*atom),
 		result:  r,
 		origin:  origin,

@@ -297,6 +297,7 @@ func (l *Lab) Export() ([]byte, error) {
 		for ii, e := range p.ev {
 			m.Ev[i].Ev[ii] = memory{
 				Mod:    e.mod.v,
+				Act:    e.act.v,
 				Out:    e.out.v,
 				Result: e.result,
 				Age:    e.origin,
@@ -345,13 +346,11 @@ func (l *Lab) Import(data []byte) error {
 		ev := make([]*entity, len(p.Ev))
 		for i, e := range p.Ev {
 			mod := l.s.ev[p.ID].pool.mod.Get().(*atom)
-			for _, v := range e.Mod {
-				mod.v = append(mod.v, v)
-			}
-			ev[i] = l.s.ev[p.ID].spawn(mod, e.Result, 0)
-			for _, v := range e.Out {
-				ev[i].out.v = append(ev[i].out.v, v)
-			}
+			mod.v = append(mod.v, e.Mod...)
+			act := l.s.ev[p.ID].pool.act.Get().(*atom)
+			act.v = append(act.v, e.Act...)
+			ev[i] = l.s.ev[p.ID].spawn(mod, act, e.Result, 0)
+			ev[i].out.v = append(ev[i].out.v, e.Out...)
 			ev[i].origin = e.Age
 		}
 		l.s.ev[p.ID].ev = ev
@@ -363,12 +362,12 @@ func (l *Lab) Import(data []byte) error {
 }
 
 type memory struct {
-	Cfg      Config
-	ID       int
-	Active   bool
-	Ev       []memory
-	Layout   [][]Node
-	Age      int
-	Mod, Out []float64
-	Result   [][]float64
+	Cfg           Config
+	ID            int
+	Active        bool
+	Ev            []memory
+	Layout        [][]Node
+	Age           int
+	Mod, Act, Out []float64
+	Result        [][]float64
 }
